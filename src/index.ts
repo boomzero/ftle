@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { rssRoutes } from "./routes/rss";
 import { seoFileRoutes } from "./routes/seo-files";
 import { publicRoutes } from "./routes/public";
+import { adminRoutes } from "./routes/admin";
 import { renderLayout } from "./layout";
 import { absoluteUrl } from "./seo/meta";
 
@@ -9,6 +10,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.route("/", rssRoutes);
 app.route("/", seoFileRoutes);
+app.route("/admin", adminRoutes);
 app.route("/", publicRoutes);
 
 app.notFound((c) => {
