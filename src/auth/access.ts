@@ -4,6 +4,21 @@ export interface AccessIdentity {
   email: string;
 }
 
+// createRemoteJWKSet caches the fetched JWKS internally and should be created
+// once per team domain, not per request — recreating it on every call would
+// re-fetch the certs endpoint on every admin request. Keyed by team domain
+// since that's a stable per-deployment config value, not per-request state.
+const jwksByTeamDomain = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+function getJwks(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
+  let jwks = jwksByTeamDomain.get(teamDomain);
+  if (!jwks) {
+    jwks = createRemoteJWKSet(new URL(`${teamDomain}/cdn-cgi/access/certs`));
+    jwksByTeamDomain.set(teamDomain, jwks);
+  }
+  return jwks;
+}
+
 export async function verifyAccessRequest(
   request: Request,
   env: Env,
@@ -12,7 +27,7 @@ export async function verifyAccessRequest(
   if (!token) return null;
 
   try {
-    const jwks = createRemoteJWKSet(new URL(`${env.ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
+    const jwks = getJwks(env.ACCESS_TEAM_DOMAIN);
     const { payload } = await jwtVerify(token, jwks, {
       issuer: env.ACCESS_TEAM_DOMAIN,
       audience: env.ACCESS_AUD,
