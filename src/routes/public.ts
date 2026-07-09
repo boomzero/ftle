@@ -47,7 +47,7 @@ publicRoutes.get("/:slug", async (c) => {
   const post = await getPostBySlug(c.env.DB, slug);
   if (!post) return c.notFound();
 
-  const canonicalUrl = absoluteUrl(c.env.SITE_URL, `/${post.slug}`);
+  const canonicalUrl = absoluteUrl(c.env.SITE_URL, `/${encodeURIComponent(post.slug)}`);
   const description = buildDescription(post.rendered);
   const tagLinks = post.tags
     .map((t) => `<a href="/tag/${encodeURIComponent(t)}">${escapeHtml(t)}</a>`)

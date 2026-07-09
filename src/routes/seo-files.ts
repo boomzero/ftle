@@ -20,8 +20,11 @@ seoFileRoutes.get("/sitemap.xml", async (c) => {
 
   const urls: { loc: string; lastmod?: string }[] = [
     { loc: absoluteUrl(c.env.SITE_URL, "/") },
-    ...posts.map((p) => ({ loc: absoluteUrl(c.env.SITE_URL, `/${p.slug}`), lastmod: p.updated_at })),
-    ...tags.map((t) => ({ loc: absoluteUrl(c.env.SITE_URL, `/tag/${t}`) })),
+    ...posts.map((p) => ({
+      loc: absoluteUrl(c.env.SITE_URL, `/${encodeURIComponent(p.slug)}`),
+      lastmod: p.updated_at,
+    })),
+    ...tags.map((t) => ({ loc: absoluteUrl(c.env.SITE_URL, `/tag/${encodeURIComponent(t)}`) })),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

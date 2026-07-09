@@ -6,7 +6,7 @@ export function computePurgePaths(opts: {
   newTags: string[];
 }): string[] {
   const tagPaths = Array.from(new Set([...opts.oldTags, ...opts.newTags])).map(
-    (tag) => `/tag/${tag}`,
+    (tag) => `/tag/${encodeURIComponent(tag)}`,
   );
   return ["/", "/rss.xml", "/sitemap.xml", opts.postPath, ...tagPaths];
 }

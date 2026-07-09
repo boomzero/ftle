@@ -179,16 +179,11 @@ adminRoutes.post("/save", async (c) => {
   const oldTags = existing?.tags ?? [];
   const oldSlug = existing?.slug;
 
+  let saved;
   try {
-    const saved = id
+    saved = id
       ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags })
       : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags });
-
-    const purgeTargets = new Set(computePurgePaths({ postPath: `/${saved.slug}`, oldTags, newTags: tags }));
-    if (oldSlug && oldSlug !== saved.slug) purgeTargets.add(`/${oldSlug}`);
-    await purgePaths(Array.from(purgeTargets));
-
-    return c.redirect(`/admin/edit/${saved.id}`, 303);
   } catch (e) {
     if (e instanceof DuplicateSlugError) {
       return renderError(`That slug is already taken: ${slug}`);
@@ -201,6 +196,23 @@ adminRoutes.post("/save", async (c) => {
     const message = e instanceof Error ? e.message : String(e);
     return renderError(`Save failed: ${message}`);
   }
+
+  // The post is already committed at this point. A cache-purge failure here
+  // is not a save failure -- it must never be reported as one (the earlier
+  // catch block above is scoped to the DB write only, not this). purgePaths
+  // itself only throws if cache.purge() rejects (a real, uncommon runtime
+  // failure); log and proceed rather than lose the "saved" redirect over it.
+  try {
+    const purgeTargets = new Set(
+      computePurgePaths({ postPath: `/${encodeURIComponent(saved.slug)}`, oldTags, newTags: tags }),
+    );
+    if (oldSlug && oldSlug !== saved.slug) purgeTargets.add(`/${encodeURIComponent(oldSlug)}`);
+    await purgePaths(Array.from(purgeTargets));
+  } catch (e) {
+    console.error("Cache purge failed after successful save", e);
+  }
+
+  return c.redirect(`/admin/edit/${saved.id}`, 303);
 });
 
 adminRoutes.post("/rerender", async (c) => {
@@ -231,8 +243,8 @@ adminRoutes.post("/rerender", async (c) => {
   }
 
   const paths = new Set<string>(["/", "/rss.xml", "/sitemap.xml"]);
-  posts.forEach((p) => paths.add(`/${p.slug}`));
-  allTags.forEach((t) => paths.add(`/tag/${t}`));
+  posts.forEach((p) => paths.add(`/${encodeURIComponent(p.slug)}`));
+  allTags.forEach((t) => paths.add(`/tag/${encodeURIComponent(t)}`));
   await purgePaths(Array.from(paths));
 
   if (failures.length > 0) {
@@ -257,7 +269,11 @@ adminRoutes.post("/delete/:id", async (c) => {
   if (!post) return c.notFound();
 
   await deletePost(c.env.DB, id);
-  const paths = computePurgePaths({ postPath: `/${post.slug}`, oldTags: post.tags, newTags: [] });
+  const paths = computePurgePaths({
+    postPath: `/${encodeURIComponent(post.slug)}`,
+    oldTags: post.tags,
+    newTags: [],
+  });
   await purgePaths(paths);
 
   return c.redirect("/admin", 303);

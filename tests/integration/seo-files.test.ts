@@ -35,7 +35,7 @@ describe("robots.txt and sitemap.xml", () => {
     expect(xml).toContain("<loc>https://example.com/tag/intro</loc>");
   });
 
-  it("GET /sitemap.xml escapes an & in a tag name so the sitemap stays well-formed XML", async () => {
+  it("GET /sitemap.xml URL-encodes an & in a tag name so the sitemap stays well-formed XML and a valid link", async () => {
     await createPost(env.DB, {
       slug: "hello",
       title: "Hello",
@@ -46,7 +46,7 @@ describe("robots.txt and sitemap.xml", () => {
     });
     const res = await app.request("/sitemap.xml", {}, env);
     const xml = await res.text();
-    expect(xml).toContain("<loc>https://example.com/tag/R&amp;D</loc>");
+    expect(xml).toContain("<loc>https://example.com/tag/R%26D</loc>");
     expect(xml).not.toContain("<loc>https://example.com/tag/R&D</loc>");
   });
 });

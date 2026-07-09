@@ -12,7 +12,7 @@ rssRoutes.get("/rss.xml", async (c) => {
 
   const entries = posts
     .map((post) => {
-      const postUrl = absoluteUrl(c.env.SITE_URL, `/${post.slug}`);
+      const postUrl = absoluteUrl(c.env.SITE_URL, `/${encodeURIComponent(post.slug)}`);
       return `
   <entry>
     <title>${escapeXml(post.title)}</title>

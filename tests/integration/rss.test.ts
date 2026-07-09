@@ -30,7 +30,7 @@ describe("GET /rss.xml", () => {
     expect(xml).toContain("<id>https://example.com/hello-world</id>");
   });
 
-  it("escapes an & in the post slug so the feed stays well-formed XML", async () => {
+  it("URL-encodes a & in the post slug so the feed stays well-formed XML and a valid link", async () => {
     await createPost(env.DB, {
       slug: "a&b",
       title: "A and B",
@@ -42,7 +42,8 @@ describe("GET /rss.xml", () => {
 
     const res = await app.request("/rss.xml", {}, env);
     const xml = await res.text();
-    expect(xml).toContain("<id>https://example.com/a&amp;b</id>");
+    expect(xml).toContain("<id>https://example.com/a%26b</id>");
     expect(xml).not.toContain('href="https://example.com/a&b"');
+    expect(xml).not.toContain("<id>https://example.com/a&b</id>");
   });
 });
