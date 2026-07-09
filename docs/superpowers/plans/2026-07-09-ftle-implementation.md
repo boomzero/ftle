@@ -286,7 +286,7 @@ describe("extractMathSpans", () => {
   it("extracts a single inline span", () => {
     const spans = extractMathSpans("The answer is $x^2$ here.");
     expect(spans).toEqual([
-      { type: "inline", latex: "x^2", start: 14, end: 20 },
+      { type: "inline", latex: "x^2", start: 14, end: 19 },
     ]);
   });
 
