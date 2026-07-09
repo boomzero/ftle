@@ -6,6 +6,7 @@ import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
 import { KatexRenderError } from "../render/katex-render";
 import { escapeAttr, escapeHtml } from "../util/escape";
+import { SITE_CSS } from "../generated/site-css";
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -26,7 +27,7 @@ adminRoutes.get("/", async (c) => {
   const rows = posts
     .map(
       (p) =>
-        `<li><a href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a> (${escapeHtml(p.slug)}) — <a href="/${encodeURIComponent(p.slug)}">view</a></li>`,
+        `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">(${escapeHtml(p.slug)}) — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a></span></li>`,
     )
     .join("");
   const html = renderLayout({
@@ -34,7 +35,7 @@ adminRoutes.get("/", async (c) => {
     pageTitle: "Admin",
     description: "Admin post list.",
     canonicalUrl: `${c.env.SITE_URL}/admin`,
-    bodyHtml: `<h1>Posts</h1><p><a href="/admin/new">New post</a></p><ul>${rows}</ul>`,
+    bodyHtml: `<h1 class="mb-6 text-3xl font-bold tracking-tight">Posts</h1><p class="mb-6"><a class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" href="/admin/new">New post</a></p><ul class="divide-y divide-gray-200 dark:divide-gray-800">${rows}</ul>`,
     noindex: true,
   });
   return c.html(html);
@@ -50,19 +51,27 @@ function editorForm(opts: {
   error?: string;
 }): string {
   return `
-    <h1>${opts.isEdit ? "Edit" : "New"} Post</h1>
-    ${opts.error ? `<p style="color:red">${escapeHtml(opts.error)}</p>` : ""}
-    <form method="post" action="${escapeAttr(opts.action)}">
-      <p><label>Title <input name="title" value="${escapeAttr(opts.title)}"></label></p>
-      <p><label>Slug <input name="slug" value="${escapeAttr(opts.slug)}"></label></p>
-      <p><label>Tags <input name="tags" value="${escapeAttr(opts.tags)}"></label></p>
-      <p><textarea name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea></p>
-      <p>
-        <button type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
-        <button type="submit">Save</button>
+    <h1 class="mb-6 text-3xl font-bold tracking-tight">${opts.isEdit ? "Edit" : "New"} Post</h1>
+    ${opts.error ? `<p class="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">${escapeHtml(opts.error)}</p>` : ""}
+    <form class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}">
+      <label class="flex flex-col gap-1 text-sm font-medium">Title
+        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="title" value="${escapeAttr(opts.title)}">
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium">Slug
+        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="slug" value="${escapeAttr(opts.slug)}">
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium">Tags
+        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="tags" value="${escapeAttr(opts.tags)}">
+      </label>
+      <label class="flex flex-col gap-1 text-sm font-medium">Source
+        <textarea class="rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea>
+      </label>
+      <p class="flex gap-3">
+        <button class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
+        <button class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" type="submit">Save</button>
       </p>
     </form>
-    <iframe name="preview" style="width:100%;height:300px;border:1px solid #ccc"></iframe>
+    <iframe class="mt-6 h-[300px] w-full rounded-md border border-gray-300 dark:border-gray-700" name="preview"></iframe>
   `;
 }
 
@@ -112,11 +121,11 @@ adminRoutes.post("/preview", async (c) => {
   const source = String(body.source ?? "");
   try {
     const { rendered } = renderPost(source);
-    return c.html(rendered);
+    return c.html(`<style>${SITE_CSS}</style><div class="prose dark:prose-invert max-w-none">${rendered}</div>`);
   } catch (e) {
     if (e instanceof KatexRenderError) {
       return c.html(
-        `<p style="color:red">Math error: ${escapeHtml(e.message)} (in "${escapeHtml(e.latex)}")</p>`,
+        `<style>${SITE_CSS}</style><p class="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">Math error: ${escapeHtml(e.message)} (in "${escapeHtml(e.latex)}")</p>`,
       );
     }
     throw e;
@@ -248,13 +257,15 @@ adminRoutes.post("/rerender", async (c) => {
   await purgePaths(Array.from(paths));
 
   if (failures.length > 0) {
-    const list = failures.map((f) => `<li>${escapeHtml(f.slug)}: ${escapeHtml(f.message)}</li>`).join("");
+    const list = failures
+      .map((f) => `<li class="py-1">${escapeHtml(f.slug)}: ${escapeHtml(f.message)}</li>`)
+      .join("");
     const html = renderLayout({
       siteTitle: c.env.SITE_TITLE,
       pageTitle: "Rerender",
       description: "Rerender results.",
       canonicalUrl: `${c.env.SITE_URL}/admin`,
-      bodyHtml: `<h1>Rerender completed with errors</h1><p>${posts.length - failures.length} of ${posts.length} posts re-rendered successfully.</p><ul>${list}</ul><p><a href="/admin">Back to admin</a></p>`,
+      bodyHtml: `<h1 class="mb-4 text-3xl font-bold tracking-tight">Rerender completed with errors</h1><p class="mb-4 text-sm text-gray-500 dark:text-gray-400">${posts.length - failures.length} of ${posts.length} posts re-rendered successfully.</p><ul class="mb-6 divide-y divide-gray-200 dark:divide-gray-800">${list}</ul><p><a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin">Back to admin</a></p>`,
       noindex: true,
     });
     return c.html(html, 200);

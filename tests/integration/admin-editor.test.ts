@@ -19,7 +19,7 @@ describe("admin editor pages", () => {
     expect(html).toContain('name="title"');
     expect(html).toContain('name="slug"');
     expect(html).toContain('name="tags"');
-    expect(html).toContain("<h1>New Post</h1>");
+    expect(html).toMatch(/<h1[^>]*>New Post<\/h1>/);
   });
 
   it("GET /admin/edit/:id returns the form pre-filled with source, headed 'Edit Post'", async () => {
@@ -38,7 +38,7 @@ describe("admin editor pages", () => {
     expect(html).toContain("# Hello");
     expect(html).toContain('value="hello"');
     expect(html).toContain('value="a, b"');
-    expect(html).toContain("<h1>Edit Post</h1>");
+    expect(html).toMatch(/<h1[^>]*>Edit Post<\/h1>/);
   });
 
   it("GET /admin/edit/:id returns 404 for a nonexistent id", async () => {
