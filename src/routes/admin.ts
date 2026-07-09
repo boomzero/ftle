@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
-import { listPosts, getPostById } from "../db/posts";
+import { listPosts, getPostById, createPost, updatePost, DuplicateSlugError } from "../db/posts";
+import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
 import { KatexRenderError } from "../render/katex-render";
@@ -105,6 +106,79 @@ adminRoutes.post("/preview", async (c) => {
   } catch (e) {
     if (e instanceof KatexRenderError) {
       return c.html(`<p style="color:red">Math error: ${e.message} (in "${e.latex}")</p>`);
+    }
+    throw e;
+  }
+});
+
+function parseTags(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+}
+
+adminRoutes.post("/save", async (c) => {
+  const body = await c.req.parseBody();
+  const title = String(body.title ?? "").trim();
+  const slug = String(body.slug ?? "").trim();
+  const source = String(body.source ?? "");
+  const tags = parseTags(String(body.tags ?? ""));
+  const idParam = c.req.query("id");
+  const id = idParam ? Number(idParam) : undefined;
+
+  const renderError = (message: string) => {
+    const html = renderLayout({
+      siteTitle: c.env.SITE_TITLE,
+      pageTitle: id ? "Edit Post" : "New Post",
+      description: "Post editor.",
+      canonicalUrl: `${c.env.SITE_URL}/admin/${id ? `edit/${id}` : "new"}`,
+      bodyHtml: editorForm({
+        action: id ? `/admin/save?id=${id}` : "/admin/save",
+        title,
+        slug,
+        tags: tags.join(", "),
+        source,
+        error: message,
+      }),
+      noindex: true,
+    });
+    return c.html(html);
+  };
+
+  if (!title) return renderError("Title is required.");
+  if (!slug) return renderError("Slug is required.");
+
+  let rendered: string;
+  let hasMath: boolean;
+  try {
+    const result = renderPost(source);
+    rendered = result.rendered;
+    hasMath = result.hasMath;
+  } catch (e) {
+    if (e instanceof KatexRenderError) {
+      return renderError(`Math error: ${e.message} (in "${e.latex}")`);
+    }
+    throw e;
+  }
+
+  const existing = id ? await getPostById(c.env.DB, id) : null;
+  const oldTags = existing?.tags ?? [];
+  const oldSlug = existing?.slug;
+
+  try {
+    const saved = id
+      ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags })
+      : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags });
+
+    const purgeTargets = new Set(computePurgePaths({ postPath: `/${saved.slug}`, oldTags, newTags: tags }));
+    if (oldSlug && oldSlug !== saved.slug) purgeTargets.add(`/${oldSlug}`);
+    await purgePaths(Array.from(purgeTargets));
+
+    return c.redirect(`/admin/edit/${saved.id}`, 303);
+  } catch (e) {
+    if (e instanceof DuplicateSlugError) {
+      return renderError(`That slug is already taken: ${slug}`);
     }
     throw e;
   }
