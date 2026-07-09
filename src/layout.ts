@@ -48,7 +48,7 @@ ${noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:t
 <meta name="twitter:card" content="summary">
 ${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr(rssUrl)}">\n` : ""}${hasMath && katexCssPath ? `<link rel="stylesheet" href="${escapeAttr(katexCssPath)}">\n` : ""}${jsonLd ? `<script type="application/ld+json">${jsonLd.replace(/</g, "\\u003c")}</script>\n` : ""}<style>${SITE_CSS}</style>
 </head>
-<body class="px-4 py-12 font-sans leading-relaxed">
+<body class="mx-auto max-w-4xl px-4 py-12 font-sans leading-relaxed">
 <nav class="mb-10 flex gap-4 text-sm">
 <a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/">${safeSiteTitle}</a>
 <a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/rss.xml">RSS</a>
