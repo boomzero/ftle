@@ -6,24 +6,25 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "cache": { "enabled": true },
+  "workers_dev": false,
   "vars": {
-    "SITE_URL": "https://example.com",
-    "SITE_TITLE": "ftle",
-    "SITE_DESCRIPTION": "A personal blog.",
-    "SITE_AUTHOR": "Your Name",
-    "ACCESS_TEAM_DOMAIN": "https://your-team.cloudflareaccess.com",
-    "ACCESS_AUD": "replace-with-access-aud-tag"
+    "SITE_URL": "https://boomzero.uk",
+    "SITE_TITLE": "boomzero.uk",
+    "SITE_DESCRIPTION": "A personal blog running on ftle",
+    "SITE_AUTHOR": "boomzero",
+    "ACCESS_TEAM_DOMAIN": "https://boomzero.cloudflareaccess.com",
+    "ACCESS_AUD": "da2c93f74d5eb04fac3c7d44ba894b25f700ea45f93ea9a6f95c7fae20e5465e",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "ftle",
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
-    }
+      "database_id": "69a6d8a8-081a-4f49-a99b-4b09a78d5a64",
+      "migrations_dir": "migrations",
+    },
   ],
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
-  }
+    "binding": "ASSETS",
+  },
 }
