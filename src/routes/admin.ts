@@ -5,6 +5,7 @@ import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
 import { KatexRenderError } from "../render/katex-render";
+import { escapeAttr, escapeHtml } from "../util/escape";
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -25,7 +26,7 @@ adminRoutes.get("/", async (c) => {
   const rows = posts
     .map(
       (p) =>
-        `<li><a href="/admin/edit/${p.id}">${p.title}</a> (${p.slug}) — <a href="/${p.slug}">view</a></li>`,
+        `<li><a href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a> (${escapeHtml(p.slug)}) — <a href="/${encodeURIComponent(p.slug)}">view</a></li>`,
     )
     .join("");
   const html = renderLayout({
@@ -40,6 +41,7 @@ adminRoutes.get("/", async (c) => {
 });
 
 function editorForm(opts: {
+  isEdit: boolean;
   action: string;
   title: string;
   slug: string;
@@ -48,13 +50,13 @@ function editorForm(opts: {
   error?: string;
 }): string {
   return `
-    <h1>${opts.action === "/admin/save" ? "Edit" : "New"} Post</h1>
-    ${opts.error ? `<p style="color:red">${opts.error}</p>` : ""}
-    <form method="post" action="${opts.action}">
-      <p><label>Title <input name="title" value="${opts.title}"></label></p>
-      <p><label>Slug <input name="slug" value="${opts.slug}"></label></p>
-      <p><label>Tags <input name="tags" value="${opts.tags}"></label></p>
-      <p><textarea name="source" rows="20" cols="80">${opts.source}</textarea></p>
+    <h1>${opts.isEdit ? "Edit" : "New"} Post</h1>
+    ${opts.error ? `<p style="color:red">${escapeHtml(opts.error)}</p>` : ""}
+    <form method="post" action="${escapeAttr(opts.action)}">
+      <p><label>Title <input name="title" value="${escapeAttr(opts.title)}"></label></p>
+      <p><label>Slug <input name="slug" value="${escapeAttr(opts.slug)}"></label></p>
+      <p><label>Tags <input name="tags" value="${escapeAttr(opts.tags)}"></label></p>
+      <p><textarea name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea></p>
       <p>
         <button type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
         <button type="submit">Save</button>
@@ -70,7 +72,14 @@ adminRoutes.get("/new", (c) => {
     pageTitle: "New Post",
     description: "New post editor.",
     canonicalUrl: `${c.env.SITE_URL}/admin/new`,
-    bodyHtml: editorForm({ action: "/admin/save", title: "", slug: "", tags: "", source: "" }),
+    bodyHtml: editorForm({
+      isEdit: false,
+      action: "/admin/save",
+      title: "",
+      slug: "",
+      tags: "",
+      source: "",
+    }),
     noindex: true,
   });
   return c.html(html);
@@ -86,6 +95,7 @@ adminRoutes.get("/edit/:id", async (c) => {
     description: "Post editor.",
     canonicalUrl: `${c.env.SITE_URL}/admin/edit/${id}`,
     bodyHtml: editorForm({
+      isEdit: true,
       action: `/admin/save?id=${id}`,
       title: post.title,
       slug: post.slug,
@@ -105,7 +115,9 @@ adminRoutes.post("/preview", async (c) => {
     return c.html(rendered);
   } catch (e) {
     if (e instanceof KatexRenderError) {
-      return c.html(`<p style="color:red">Math error: ${e.message} (in "${e.latex}")</p>`);
+      return c.html(
+        `<p style="color:red">Math error: ${escapeHtml(e.message)} (in "${escapeHtml(e.latex)}")</p>`,
+      );
     }
     throw e;
   }
@@ -134,6 +146,7 @@ adminRoutes.post("/save", async (c) => {
       description: "Post editor.",
       canonicalUrl: `${c.env.SITE_URL}/admin/${id ? `edit/${id}` : "new"}`,
       bodyHtml: editorForm({
+        isEdit: Boolean(id),
         action: id ? `/admin/save?id=${id}` : "/admin/save",
         title,
         slug,
@@ -180,30 +193,60 @@ adminRoutes.post("/save", async (c) => {
     if (e instanceof DuplicateSlugError) {
       return renderError(`That slug is already taken: ${slug}`);
     }
-    throw e;
+    // Any other save-path failure (e.g. the post behind `id` was deleted in
+    // another tab between page load and submit) must still return the editor
+    // with the submitted source intact -- never lose typed work, per
+    // AGENTS.md's non-negotiable. Falling through to an uncaught throw here
+    // would drop the draft behind a bare 500.
+    const message = e instanceof Error ? e.message : String(e);
+    return renderError(`Save failed: ${message}`);
   }
 });
 
 adminRoutes.post("/rerender", async (c) => {
   const posts = await listPosts(c.env.DB);
   const allTags = new Set<string>();
+  const failures: { slug: string; message: string }[] = [];
+
   for (const post of posts) {
-    const { rendered, hasMath } = renderPost(post.source);
-    await updatePost(c.env.DB, post.id, {
-      slug: post.slug,
-      title: post.title,
-      source: post.source,
-      rendered,
-      hasMath,
-      tags: post.tags,
-    });
-    post.tags.forEach((t) => allTags.add(t));
+    try {
+      const { rendered, hasMath } = renderPost(post.source);
+      await updatePost(c.env.DB, post.id, {
+        slug: post.slug,
+        title: post.title,
+        source: post.source,
+        rendered,
+        hasMath,
+        tags: post.tags,
+      });
+      post.tags.forEach((t) => allTags.add(t));
+    } catch (e) {
+      // A renderer regression in one post (the exact scenario this endpoint
+      // exists to catch, per its purpose after a renderer upgrade) must not
+      // abort re-rendering every other post in the batch.
+      const message = e instanceof Error ? e.message : String(e);
+      failures.push({ slug: post.slug, message });
+      console.error(`rerender failed for post "${post.slug}":`, message);
+    }
   }
 
   const paths = new Set<string>(["/", "/rss.xml", "/sitemap.xml"]);
   posts.forEach((p) => paths.add(`/${p.slug}`));
   allTags.forEach((t) => paths.add(`/tag/${t}`));
   await purgePaths(Array.from(paths));
+
+  if (failures.length > 0) {
+    const list = failures.map((f) => `<li>${escapeHtml(f.slug)}: ${escapeHtml(f.message)}</li>`).join("");
+    const html = renderLayout({
+      siteTitle: c.env.SITE_TITLE,
+      pageTitle: "Rerender",
+      description: "Rerender results.",
+      canonicalUrl: `${c.env.SITE_URL}/admin`,
+      bodyHtml: `<h1>Rerender completed with errors</h1><p>${posts.length - failures.length} of ${posts.length} posts re-rendered successfully.</p><ul>${list}</ul><p><a href="/admin">Back to admin</a></p>`,
+      noindex: true,
+    });
+    return c.html(html, 200);
+  }
 
   return c.redirect("/admin", 303);
 });

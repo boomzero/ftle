@@ -83,4 +83,24 @@ describe("POST /admin/save", () => {
     const publicRes = await app.request("/editable", {}, env);
     expect(await publicRes.text()).toContain("<h1>After</h1>");
   });
+
+  it("preserves the submitted draft instead of a bare 500 when ?id= no longer exists", async () => {
+    // Simulates a stale /admin/edit/:id tab reused after the post was deleted
+    // elsewhere -- updatePost throws "Failed to read back updated post",
+    // which is neither DuplicateSlugError nor KatexRenderError.
+    const headers = { ...(await authedHeaders()), "Content-Type": "application/x-www-form-urlencoded" };
+    const res = await app.request(
+      "/admin/save?id=999999",
+      {
+        method: "POST",
+        headers,
+        body: formBody({ title: "Recovered", slug: "recovered", tags: "", source: "my unsaved draft" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("my unsaved draft");
+    expect(html.toLowerCase()).toContain("save failed");
+  });
 });

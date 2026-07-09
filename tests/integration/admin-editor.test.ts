@@ -10,7 +10,7 @@ beforeEach(async () => {
 });
 
 describe("admin editor pages", () => {
-  it("GET /admin/new returns an empty editor form", async () => {
+  it("GET /admin/new returns an empty editor form headed 'New Post'", async () => {
     const headers = await authedHeaders();
     const res = await app.request("/admin/new", { headers }, env);
     expect(res.status).toBe(200);
@@ -19,9 +19,10 @@ describe("admin editor pages", () => {
     expect(html).toContain('name="title"');
     expect(html).toContain('name="slug"');
     expect(html).toContain('name="tags"');
+    expect(html).toContain("<h1>New Post</h1>");
   });
 
-  it("GET /admin/edit/:id returns the form pre-filled with source", async () => {
+  it("GET /admin/edit/:id returns the form pre-filled with source, headed 'Edit Post'", async () => {
     const post = await createPost(env.DB, {
       slug: "hello",
       title: "Hello",
@@ -37,11 +38,29 @@ describe("admin editor pages", () => {
     expect(html).toContain("# Hello");
     expect(html).toContain('value="hello"');
     expect(html).toContain('value="a, b"');
+    expect(html).toContain("<h1>Edit Post</h1>");
   });
 
   it("GET /admin/edit/:id returns 404 for a nonexistent id", async () => {
     const headers = await authedHeaders();
     const res = await app.request("/admin/edit/99999", { headers }, env);
     expect(res.status).toBe(404);
+  });
+
+  it("GET /admin/edit/:id escapes a title/source that would otherwise break the form's HTML", async () => {
+    const post = await createPost(env.DB, {
+      slug: "hello",
+      title: 'Say "hi" & bye',
+      source: "before </textarea><script>alert(1)</script> after",
+      rendered: "<p>x</p>",
+      hasMath: false,
+      tags: [],
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('value="Say &quot;hi&quot; &amp; bye"');
+    expect(html).not.toContain("</textarea><script>alert(1)</script>");
+    expect(html).toContain("before &lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt; after");
   });
 });
