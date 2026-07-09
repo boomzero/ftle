@@ -4,4 +4,5 @@ dist/
 worker-configuration.d.ts
 public/katex.*.css
 public/fonts/
+src/generated/
 .dev.vars
