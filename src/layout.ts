@@ -1,4 +1,5 @@
 import { SITE_CSS } from "./css/site-css";
+import { escapeAttr, escapeHtml } from "./util/escape";
 
 export interface LayoutOptions {
   siteTitle: string;
@@ -12,10 +13,6 @@ export interface LayoutOptions {
   jsonLd?: string;
   noindex?: boolean;
   rssUrl?: string;
-}
-
-function escapeAttr(value: string): string {
-  return value.replace(/"/g, "&quot;");
 }
 
 export function renderLayout(opts: LayoutOptions): string {
@@ -34,13 +31,14 @@ export function renderLayout(opts: LayoutOptions): string {
   } = opts;
 
   const title = pageTitle === siteTitle ? siteTitle : `${pageTitle} — ${siteTitle}`;
+  const safeSiteTitle = escapeHtml(siteTitle);
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeAttr(description)}">
 <link rel="canonical" href="${escapeAttr(canonicalUrl)}">
 ${noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:type" content="${ogType}">
@@ -48,12 +46,12 @@ ${noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:t
 <meta property="og:description" content="${escapeAttr(description)}">
 <meta property="og:url" content="${escapeAttr(canonicalUrl)}">
 <meta name="twitter:card" content="summary">
-${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr(rssUrl)}">\n` : ""}${hasMath && katexCssPath ? `<link rel="stylesheet" href="${escapeAttr(katexCssPath)}">\n` : ""}${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>\n` : ""}<style>${SITE_CSS}</style>
+${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr(rssUrl)}">\n` : ""}${hasMath && katexCssPath ? `<link rel="stylesheet" href="${escapeAttr(katexCssPath)}">\n` : ""}${jsonLd ? `<script type="application/ld+json">${jsonLd.replace(/</g, "\\u003c")}</script>\n` : ""}<style>${SITE_CSS}</style>
 </head>
 <body>
-<nav><a href="/">${siteTitle}</a> <a href="/rss.xml">RSS</a></nav>
+<nav><a href="/">${safeSiteTitle}</a> <a href="/rss.xml">RSS</a></nav>
 ${bodyHtml}
-<footer>${siteTitle}</footer>
+<footer>${safeSiteTitle}</footer>
 </body>
 </html>`;
 }

@@ -64,4 +64,19 @@ describe("renderLayout", () => {
     const html = renderLayout(baseOpts);
     expect(html).toContain("<article>Hello</article>");
   });
+
+  it("escapes special characters in the title instead of breaking out of the <title> element", () => {
+    const html = renderLayout({ ...baseOpts, pageTitle: "C++ & </title><script>1</script>" });
+    expect(html).not.toContain("</title><script>");
+    expect(html).toContain("C++ &amp; &lt;/title&gt;&lt;script&gt;1&lt;/script&gt;");
+  });
+
+  it("escapes a literal </script> inside jsonLd so it can't terminate the script tag early", () => {
+    const html = renderLayout({
+      ...baseOpts,
+      jsonLd: '{"headline":"a</script><script>alert(1)</script>"}',
+    });
+    expect(html).not.toContain("</script><script>alert(1)</script>");
+    expect(html).toContain('"headline":"a\\u003c/script>\\u003cscript>alert(1)\\u003c/script>"');
+  });
 });

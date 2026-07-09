@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { listPosts } from "../db/posts";
 import { absoluteUrl } from "../seo/meta";
+import { escapeXml } from "../util/escape";
 
 export const seoFileRoutes = new Hono<{ Bindings: Env }>();
 
@@ -26,7 +27,10 @@ seoFileRoutes.get("/sitemap.xml", async (c) => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
-  .map((u) => `  <url><loc>${u.loc}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ""}</url>`)
+  .map(
+    (u) =>
+      `  <url><loc>${escapeXml(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ""}</url>`,
+  )
   .join("\n")}
 </urlset>`;
 

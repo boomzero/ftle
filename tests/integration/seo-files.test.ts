@@ -34,4 +34,19 @@ describe("robots.txt and sitemap.xml", () => {
     expect(xml).toContain("<loc>https://example.com/hello-world</loc>");
     expect(xml).toContain("<loc>https://example.com/tag/intro</loc>");
   });
+
+  it("GET /sitemap.xml escapes an & in a tag name so the sitemap stays well-formed XML", async () => {
+    await createPost(env.DB, {
+      slug: "hello",
+      title: "Hello",
+      source: "x",
+      rendered: "<p>x</p>",
+      hasMath: false,
+      tags: ["R&D"],
+    });
+    const res = await app.request("/sitemap.xml", {}, env);
+    const xml = await res.text();
+    expect(xml).toContain("<loc>https://example.com/tag/R&amp;D</loc>");
+    expect(xml).not.toContain("<loc>https://example.com/tag/R&D</loc>");
+  });
 });

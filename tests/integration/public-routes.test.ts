@@ -57,6 +57,17 @@ describe("public routes", () => {
     expect(html).not.toContain(">b<");
   });
 
+  it("GET /tag/:tag escapes an HTML-injecting tag instead of reflecting it raw", async () => {
+    const res = await app.request(
+      "/tag/" + encodeURIComponent('<img src=x onerror=alert(1)>'),
+      {},
+      env,
+    );
+    const html = await res.text();
+    expect(html).not.toContain("<img src=x onerror=alert(1)>");
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+  });
+
   it("post page includes the KaTeX stylesheet only when has_math is set", async () => {
     await seedPost({ slug: "math-post", hasMath: true, rendered: '<span class="katex">x</span>' });
     await seedPost({ slug: "no-math-post" });
