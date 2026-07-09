@@ -638,8 +638,8 @@ export interface RenderResult {
   hasMath: boolean;
 }
 
-const PLACEHOLDER_PREFIX = " MATH";
-const PLACEHOLDER_SUFFIX = " ";
+const PLACEHOLDER_PREFIX = "\u0000MATH";
+const PLACEHOLDER_SUFFIX = "\u0000";
 
 export function renderPost(source: string): RenderResult {
   const spans = extractMathSpans(source);
@@ -664,7 +664,7 @@ export function renderPost(source: string): RenderResult {
   let rendered = renderMarkdown(withPlaceholders);
   htmlBySpan.forEach((html, index) => {
     const token = `${PLACEHOLDER_PREFIX}${index}${PLACEHOLDER_SUFFIX}`;
-    rendered = rendered.replace(token, html);
+    rendered = rendered.replace(token, () => html);
   });
 
   return { rendered, hasMath: true };

@@ -39,4 +39,21 @@ describe("renderPost", () => {
     expect(result.rendered).toContain('class="note"');
     expect(result.rendered).toContain('class="katex"');
   });
+
+  it("preserves literal $ sequences inside KaTeX output during placeholder substitution", () => {
+    // \textdollar\textdollar renders to HTML containing the literal
+    // substring "$$5" — and, crucially, the LaTeX source itself contains no
+    // "$" character, so extractMathSpans's delimiter search isn't confused
+    // by it. If the placeholder substitution ever used a *string* replacer
+    // instead of a function replacer, String#replace would interpret "$$"
+    // in the replacement text as an escaped "$" and silently corrupt "$$5"
+    // into "$5". This test exercises that exact path.
+    const result = renderPost(
+      "Price: $\\text{\\textdollar\\textdollar5}$ each."
+    );
+    expect(result.hasMath).toBe(true);
+    expect(result.rendered).toContain("$$5");
+    expect(result.rendered).toContain("Price:");
+    expect(result.rendered).toContain("each.");
+  });
 });

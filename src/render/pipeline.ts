@@ -46,7 +46,13 @@ export function renderPost(source: string): RenderResult {
   let rendered = renderMarkdown(withPlaceholders);
   htmlBySpan.forEach((html, index) => {
     const token = `${PLACEHOLDER_PREFIX}${index}${PLACEHOLDER_SUFFIX}`;
-    rendered = rendered.replace(token, html);
+    // Use a function replacer, not a string, so KaTeX's HTML is inserted
+    // literally. A string replacement argument to String#replace interprets
+    // "$$", "$&", "$`", and "$'" as special substitution patterns — and
+    // KaTeX output can genuinely contain literal "$" sequences (e.g. from
+    // \text{\$} or content demonstrating the "$$" display delimiter), which
+    // would otherwise be silently corrupted rather than inserted verbatim.
+    rendered = rendered.replace(token, () => html);
   });
 
   return { rendered, hasMath: true };
