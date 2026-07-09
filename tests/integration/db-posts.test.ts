@@ -61,6 +61,23 @@ describe("posts data layer", () => {
     const created = await createPost(env.DB, baseInput);
     await deletePost(env.DB, created.id);
     expect(await getPostById(env.DB, created.id)).toBeNull();
+
+    const remainingTags = await env.DB
+      .prepare("SELECT * FROM post_tags WHERE post_id = ?")
+      .bind(created.id)
+      .all();
+    expect(remainingTags.results).toHaveLength(0);
+  });
+
+  it("updates tags atomically: the old tag set is never briefly empty", async () => {
+    const created = await createPost(env.DB, baseInput);
+    await updatePost(env.DB, created.id, { ...baseInput, tags: ["replacement-tag"] });
+
+    const rows = await env.DB
+      .prepare("SELECT tag FROM post_tags WHERE post_id = ?")
+      .bind(created.id)
+      .all<{ tag: string }>();
+    expect(rows.results.map((r) => r.tag)).toEqual(["replacement-tag"]);
   });
 
   it("lists posts newest-first", async () => {

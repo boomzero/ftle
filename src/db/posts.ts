@@ -62,10 +62,19 @@ export async function createPost(db: D1Database, input: PostInput): Promise<Post
   const id = result.meta.last_row_id as number;
 
   if (input.tags.length > 0) {
-    const tagInserts = input.tags.map((tag) =>
-      db.prepare(`INSERT INTO post_tags (post_id, tag) VALUES (?, ?)`).bind(id, tag),
-    );
-    await db.batch(tagInserts);
+    try {
+      const tagInserts = input.tags.map((tag) =>
+        db.prepare(`INSERT INTO post_tags (post_id, tag) VALUES (?, ?)`).bind(id, tag),
+      );
+      await db.batch(tagInserts);
+    } catch (e) {
+      // The post row and its tags can't be inserted in one D1 batch (the
+      // tag rows need the post's id, which only exists after the post
+      // insert commits). If the tag batch fails, remove the now-orphaned
+      // post rather than leaving a tag-less post behind silently.
+      await db.prepare(`DELETE FROM posts WHERE id = ?`).bind(id).run();
+      throw e;
+    }
   }
 
   const created = await getPostById(db, id);
@@ -81,21 +90,22 @@ export async function updatePost(
   if (await isSlugTaken(db, input.slug, id)) throw new DuplicateSlugError(input.slug);
 
   const now = new Date().toISOString();
-  await db
+  const updatePostStmt = db
     .prepare(
       `UPDATE posts SET slug = ?, title = ?, source = ?, rendered = ?, has_math = ?, updated_at = ?
        WHERE id = ?`,
     )
-    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, now, id)
-    .run();
+    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, now, id);
+  const deleteTagsStmt = db.prepare(`DELETE FROM post_tags WHERE post_id = ?`).bind(id);
+  const tagInserts = input.tags.map((tag) =>
+    db.prepare(`INSERT INTO post_tags (post_id, tag) VALUES (?, ?)`).bind(id, tag),
+  );
 
-  await db.prepare(`DELETE FROM post_tags WHERE post_id = ?`).bind(id).run();
-  if (input.tags.length > 0) {
-    const tagInserts = input.tags.map((tag) =>
-      db.prepare(`INSERT INTO post_tags (post_id, tag) VALUES (?, ?)`).bind(id, tag),
-    );
-    await db.batch(tagInserts);
-  }
+  // The id is already known here (unlike createPost), so the post update and
+  // the full tag replacement can be one atomic D1 batch -- no window where a
+  // failure between the delete and the re-insert could leave the post with
+  // zero tags.
+  await db.batch([updatePostStmt, deleteTagsStmt, ...tagInserts]);
 
   const updated = await getPostById(db, id);
   if (!updated) throw new Error("Failed to read back updated post");
