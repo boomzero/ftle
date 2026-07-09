@@ -13,6 +13,7 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             TEST_MIGRATIONS: migrations,
+            SITE_URL: "https://example.com",
             ACCESS_TEAM_DOMAIN: "https://test-team.cloudflareaccess.com",
             ACCESS_AUD: "test-aud-tag",
           },
