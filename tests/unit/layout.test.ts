@@ -24,6 +24,12 @@ describe("renderLayout", () => {
     expect(html).not.toContain('rel="stylesheet" href="http');
   });
 
+  it("includes external nav links to twig.boomzero.uk and sinv.boomzero.uk alongside the site title and RSS link", () => {
+    const html = renderLayout(baseOpts);
+    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/twig\.boomzero\.uk"[^>]*>[^<]*<\/a>[\s\S]*<\/nav>/);
+    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/sinv\.boomzero\.uk"[^>]*>[^<]*<\/a>[\s\S]*<\/nav>/);
+  });
+
   it("puts the background/text color on <html>, not just the centered <body> column, so it fills the full viewport instead of stopping at the content's max-width", () => {
     const html = renderLayout(baseOpts);
     const htmlTagMatch = html.match(/<html lang="en" class="([^"]*)">/);

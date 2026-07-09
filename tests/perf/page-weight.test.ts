@@ -47,7 +47,9 @@ describe("performance budget", () => {
 const scriptTags = html.match(/<script[^>]*>/gi) ?? [];
 const executableScripts = scriptTags.filter((s) => !s.includes("application/ld+json"));
 expect(executableScripts).toHaveLength(0);
-    expect(html).not.toMatch(/href="https?:\/\/(?!example\.com)/i);
+    // Ordinary <a href> nav/content links may point off-site (they're not a
+    // blocking request); only resource-loading tags must stay origin-local.
+    expect(html).not.toMatch(/<link[^>]*\shref="https?:\/\/(?!example\.com)/i);
     expect(html).not.toMatch(/src="https?:\/\/(?!example\.com)/i);
   });
 

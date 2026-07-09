@@ -52,6 +52,8 @@ ${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr
 <nav class="mb-10 flex gap-4 text-sm">
 <a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/">${safeSiteTitle}</a>
 <a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/rss.xml">RSS</a>
+<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="https://twig.boomzero.uk">Twig</a>
+<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="https://sinv.boomzero.uk">Sinv</a>
 </nav>
 ${bodyHtml}
 <footer class="mt-16 text-sm text-gray-500 dark:text-gray-400">${safeSiteTitle}</footer>
