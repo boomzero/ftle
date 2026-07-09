@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
-import { listPosts, getPostById, createPost, updatePost, DuplicateSlugError } from "../db/posts";
+import { listPosts, getPostById, createPost, updatePost, deletePost, DuplicateSlugError } from "../db/posts";
 import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
@@ -182,4 +182,40 @@ adminRoutes.post("/save", async (c) => {
     }
     throw e;
   }
+});
+
+adminRoutes.post("/rerender", async (c) => {
+  const posts = await listPosts(c.env.DB);
+  const allTags = new Set<string>();
+  for (const post of posts) {
+    const { rendered, hasMath } = renderPost(post.source);
+    await updatePost(c.env.DB, post.id, {
+      slug: post.slug,
+      title: post.title,
+      source: post.source,
+      rendered,
+      hasMath,
+      tags: post.tags,
+    });
+    post.tags.forEach((t) => allTags.add(t));
+  }
+
+  const paths = new Set<string>(["/", "/rss.xml", "/sitemap.xml"]);
+  posts.forEach((p) => paths.add(`/${p.slug}`));
+  allTags.forEach((t) => paths.add(`/tag/${t}`));
+  await purgePaths(Array.from(paths));
+
+  return c.redirect("/admin", 303);
+});
+
+adminRoutes.post("/delete/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const post = await getPostById(c.env.DB, id);
+  if (!post) return c.notFound();
+
+  await deletePost(c.env.DB, id);
+  const paths = computePurgePaths({ postPath: `/${post.slug}`, oldTags: post.tags, newTags: [] });
+  await purgePaths(paths);
+
+  return c.redirect("/admin", 303);
 });
