@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run prepare:katex && wrangler types",
-    "pretest": "npm run prepare:katex && wrangler types",
+    "predev": "npm run prepare:katex && npm run prepare:css && wrangler types",
+    "pretest": "npm run prepare:katex && npm run prepare:css && wrangler types",
     "prepare:katex": "node scripts/prepare-katex-assets.mjs",
+    "prepare:css": "node scripts/build-css.mjs",
     "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
@@ -21,6 +22,8 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.18.2",
+    "@tailwindcss/cli": "^4.3.2",
+    "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.0",
     "vitest": "^4.1.10",

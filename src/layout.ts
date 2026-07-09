@@ -1,4 +1,4 @@
-import { SITE_CSS } from "./css/site-css";
+import { SITE_CSS } from "./generated/site-css";
 import { escapeAttr, escapeHtml } from "./util/escape";
 
 export interface LayoutOptions {
