@@ -8,6 +8,13 @@ import { absoluteUrl } from "./seo/meta";
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.use("*", async (c, next) => {
+  await next();
+  if (!c.req.path.startsWith("/admin") && !c.res.headers.has("Cache-Control")) {
+    c.res.headers.set("Cache-Control", "public, max-age=60, s-maxage=31536000");
+  }
+});
+
 app.route("/", rssRoutes);
 app.route("/", seoFileRoutes);
 app.route("/admin", adminRoutes);
