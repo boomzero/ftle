@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
 import { listPosts, getPostById } from "../db/posts";
 import { renderLayout } from "../layout";
+import { renderPost } from "../render/pipeline";
+import { KatexRenderError } from "../render/katex-render";
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -92,4 +94,18 @@ adminRoutes.get("/edit/:id", async (c) => {
     noindex: true,
   });
   return c.html(html);
+});
+
+adminRoutes.post("/preview", async (c) => {
+  const body = await c.req.parseBody();
+  const source = String(body.source ?? "");
+  try {
+    const { rendered } = renderPost(source);
+    return c.html(rendered);
+  } catch (e) {
+    if (e instanceof KatexRenderError) {
+      return c.html(`<p style="color:red">Math error: ${e.message} (in "${e.latex}")</p>`);
+    }
+    throw e;
+  }
 });
