@@ -7,6 +7,7 @@ import { renderPost } from "../render/pipeline";
 import { KatexRenderError } from "../render/katex-render";
 import { escapeAttr, escapeHtml } from "../util/escape";
 import { SITE_CSS } from "../generated/site-css";
+import { KATEX_CSS_PATH } from "../generated/katex-manifest";
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -120,8 +121,11 @@ adminRoutes.post("/preview", async (c) => {
   const body = await c.req.parseBody();
   const source = String(body.source ?? "");
   try {
-    const { rendered } = renderPost(source);
-    return c.html(`<style>${SITE_CSS}</style><div class="prose dark:prose-invert max-w-none">${rendered}</div>`);
+    const { rendered, hasMath } = renderPost(source);
+    const katexCss = hasMath
+      ? `<link rel="stylesheet" href="${escapeAttr(KATEX_CSS_PATH)}">`
+      : "";
+    return c.html(`<style>${SITE_CSS}</style>${katexCss}<div class="prose dark:prose-invert max-w-none">${rendered}</div>`);
   } catch (e) {
     if (e instanceof KatexRenderError) {
       return c.html(
