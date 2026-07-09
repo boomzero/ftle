@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+dist/
+worker-configuration.d.ts
+public/katex.*.css
+public/fonts/
+.dev.vars

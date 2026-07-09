@@ -1,0 +1,29 @@
+{
+  "name": "ftle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "npm run prepare:katex && wrangler types",
+    "pretest": "npm run prepare:katex && wrangler types",
+    "prepare:katex": "node scripts/prepare-katex-assets.mjs",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "migrate:remote": "wrangler d1 migrations apply DB --remote"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "marked": "^14.1.0",
+    "katex": "^0.16.11",
+    "jose": "^5.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.6.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.69.0"
+  }
+}

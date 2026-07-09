@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ftle",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "cache": { "enabled": true },
+  "vars": {
+    "SITE_URL": "https://example.com",
+    "SITE_TITLE": "ftle",
+    "SITE_DESCRIPTION": "A personal blog.",
+    "SITE_AUTHOR": "Your Name",
+    "ACCESS_TEAM_DOMAIN": "https://your-team.cloudflareaccess.com",
+    "ACCESS_AUD": "replace-with-access-aud-tag"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ftle",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  }
+}
