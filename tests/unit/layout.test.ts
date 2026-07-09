@@ -19,9 +19,18 @@ describe("renderLayout", () => {
 
   it("has html lang attribute and inlined CSS, no external stylesheet by default", () => {
     const html = renderLayout(baseOpts);
-    expect(html).toContain('<html lang="en">');
+    expect(html).toMatch(/<html lang="en" class="[^"]*">/);
     expect(html).toContain("<style>");
     expect(html).not.toContain('rel="stylesheet" href="http');
+  });
+
+  it("puts the background/text color on <html>, not just the centered <body> column, so it fills the full viewport instead of stopping at the content's max-width", () => {
+    const html = renderLayout(baseOpts);
+    const htmlTagMatch = html.match(/<html lang="en" class="([^"]*)">/);
+    expect(htmlTagMatch).not.toBeNull();
+    const htmlClasses = htmlTagMatch![1];
+    expect(htmlClasses).toContain("bg-white");
+    expect(htmlClasses).toContain("dark:bg-gray-950");
   });
 
   it("omits the KaTeX link when hasMath is false", () => {
