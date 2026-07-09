@@ -23,7 +23,25 @@ describe("Cache-Control headers", () => {
       const cc = res.headers.get("Cache-Control") ?? "";
       expect(cc).toContain("public");
       expect(cc).toContain("s-maxage=31536000");
+      // CDN-Cache-Control gives explicit Cloudflare CDN caching directives.
+      expect(res.headers.get("CDN-Cache-Control")).toContain("max-age=31536000");
     }
+  });
+
+  it("public pages carry a Cache-Tag matching their content type", async () => {
+    await createPost(env.DB, {
+      slug: "hello",
+      title: "Hello",
+      source: "x",
+      rendered: "<p>x</p>",
+      hasMath: false,
+      tags: ["javascript"],
+    });
+    expect((await app.request("/", {}, env)).headers.get("Cache-Tag")).toBe("home");
+    expect((await app.request("/hello", {}, env)).headers.get("Cache-Tag")).toBe("post");
+    expect((await app.request("/tag/javascript", {}, env)).headers.get("Cache-Tag")).toBe("tag");
+    expect((await app.request("/rss.xml", {}, env)).headers.get("Cache-Tag")).toBe("rss");
+    expect((await app.request("/sitemap.xml", {}, env)).headers.get("Cache-Tag")).toBe("seo");
   });
 
   it("admin responses are never cached", async () => {

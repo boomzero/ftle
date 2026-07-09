@@ -1,5 +1,8 @@
 import { cache } from "cloudflare:workers";
 
+/** Cache-Tag values that should be purged for any post mutation (create, update, delete). */
+export const ALL_PURGE_TAGS = ["home", "post", "tag", "rss", "seo"];
+
 export function computePurgePaths(opts: {
   postPath: string;
   oldTags: string[];
@@ -16,7 +19,10 @@ export async function purgePaths(paths: string[]): Promise<void> {
     console.warn("cache.purge unavailable in this environment; skipping purge for", paths);
     return;
   }
-  const result = await cache.purge({ pathPrefixes: paths });
+  // Purge by tags (primary — works against the CDN cache layer) AND by path
+  // prefixes (fallback — purges the Workers cache layer). Using both covers
+  // the two cache layers that Cloudflare maintains separately.
+  const result = await cache.purge({ tags: ALL_PURGE_TAGS, pathPrefixes: paths });
   if (!result.success) {
     console.error("Cache purge failed", result.errors);
   }
