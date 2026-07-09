@@ -11,7 +11,7 @@
 ## Deviations from the literal spec text (confirmed with the project owner before writing this plan)
 
 1. **Access JWT verification uses the `jose` npm package**, not hand-rolled Web Crypto. The spec's defense-in-depth JWT check is unchanged in behavior; only the implementation mechanism differs. This is the pattern in Cloudflare's own current official docs. Counts as the "discussion" AGENTS.md requires before adding a runtime dependency.
-2. **Cache invalidation uses Cloudflare's native Workers Caching (`ctx.cache.purge()` / `cache.purge()` from `cloudflare:workers`)**, not the classic zone-level `purge_cache` REST API. This is a newer platform capability that postdates the spec's literal text. It achieves the same observable behavior the spec requires ("edits visible worldwide within seconds") with fewer moving parts: no `CF_API_TOKEN` secret, no zone ID, no external HTTP round-trip — the purge call happens in-process. Requires Wrangler ≥ 4.69.0 and a `"cache": { "enabled": true }` block in `wrangler.jsonc`.
+2. **Cache invalidation uses Cloudflare's native Workers Caching (`ctx.cache.purge()` / `cache.purge()` from `cloudflare:workers`)**, not the classic zone-level `purge_cache` REST API. This is a newer platform capability that postdates the spec's literal text. It achieves the same observable behavior the spec requires ("edits visible worldwide within seconds") with fewer moving parts: no `CF_API_TOKEN` secret, no zone ID, no external HTTP round-trip — the purge call happens in-process. Requires Wrangler ≥ 4.69.0 and a `"cache": { "enabled": true }` block in `wrangler.jsonc`. **Confirmed during Task 1 by direct probing:** `cache.purge` does not exist in the local Miniflare/workerd test runtime on any published `@cloudflare/vitest-pool-workers` version — it's a production-only edge capability, not a version gap. `src/cache/purge.ts` (Task 14) therefore feature-detects `cache.purge` and no-ops with a logged warning when it's unavailable, so the function is safe to call in every environment and purge correctness beyond "doesn't throw" can only be verified by code review and manual post-deploy checks, not the automated suite. This was an explicit, deliberate call by the project owner, made after confirming the local-untestability empirically (not a default we chose silently).
 3. **KaTeX self-hosted CSS/fonts are not glyph-subsetted**, only self-hosted and content-hash-versioned. True glyph subsetting needs external font tooling (`fonttools`/`glyphhanger`) outside this stack's toolchain. Since KaTeX assets load only on `has_math` pages and never count against the 14KB HTML budget (that budget is for the HTML document itself), this does not violate the performance contract. Flagged as a follow-up, not a blocker.
 4. **SEO meta description is auto-derived** from `rendered` (strip tags, collapse whitespace, truncate at a word boundary to ~155 chars) rather than a hand-written excerpt field — no schema change, consistent with the spec's "no draft state" minimalism.
 
@@ -1908,12 +1908,14 @@ git commit -m "Add a noindex 404 page via the shared layout"
 **Interfaces:**
 - Produces: `computePurgePaths(opts: { postPath: string; oldTags: string[]; newTags: string[] }): string[]`, `purgePaths(paths: string[]): Promise<void>`. Consumed by Task 19 (save), Task 20 (rerender), Task 21 (delete).
 
+**Confirmed by direct probing before this task was dispatched:** `cache.purge` does not exist in the local Miniflare/workerd test runtime at all — it is `undefined`, not a stub (`ExecutionContext` in `cloudflare:test` has only `waitUntil`/`passThroughOnException`; no `cache` property, on any currently published `@cloudflare/vitest-pool-workers` version). This is a production-only edge-network capability, not a version gap. `purgePaths` must therefore feature-detect `cache.purge` and no-op (with a logged warning) when it is unavailable, so the function is genuinely safe to call in every environment — including local dev and this test suite — and the "doesn't throw" test below is a true claim, not a hopeful one.
+
 - [ ] **Step 1: Write failing tests**
 
 ```ts
 // tests/unit/purge.test.ts
-import { describe, it, expect } from "vitest";
-import { computePurgePaths } from "../../src/cache/purge";
+import { describe, it, expect, vi } from "vitest";
+import { computePurgePaths, purgePaths } from "../../src/cache/purge";
 
 describe("computePurgePaths", () => {
   it("always includes root, rss, and sitemap", () => {
@@ -1929,6 +1931,25 @@ describe("computePurgePaths", () => {
     });
     const tagPaths = paths.filter((p) => p.startsWith("/tag/"));
     expect(tagPaths.sort()).toEqual(["/tag/a", "/tag/b", "/tag/c"]);
+  });
+});
+
+describe("purgePaths", () => {
+  it("does not throw when cache.purge is unavailable (e.g. local dev/test)", async () => {
+    // In this test runtime, cache.purge is genuinely undefined (confirmed by
+    // direct probing) — this exercises the real fallback path, not a mock.
+    await expect(purgePaths(["/hello"])).resolves.toBeUndefined();
+  });
+
+  it("calls cache.purge with the given paths when it is available", async () => {
+    const purge = vi.fn().mockResolvedValue({ success: true, errors: [] });
+    const cfWorkers = await import("cloudflare:workers");
+    vi.spyOn(cfWorkers, "cache", "get").mockReturnValue({ purge } as any);
+
+    await purgePaths(["/a", "/b"]);
+    expect(purge).toHaveBeenCalledWith({ pathPrefixes: ["/a", "/b"] });
+
+    vi.restoreAllMocks();
   });
 });
 ```
@@ -1955,6 +1976,10 @@ export function computePurgePaths(opts: {
 }
 
 export async function purgePaths(paths: string[]): Promise<void> {
+  if (typeof cache?.purge !== "function") {
+    console.warn("cache.purge unavailable in this environment; skipping purge for", paths);
+    return;
+  }
   const result = await cache.purge({ pathPrefixes: paths });
   if (!result.success) {
     console.error("Cache purge failed", result.errors);
@@ -1962,12 +1987,14 @@ export async function purgePaths(paths: string[]): Promise<void> {
 }
 ```
 
+If the second test (mocking `cache.purge` as available) can't get `vi.spyOn(cfWorkers, "cache", "get")` to work against the `cloudflare:workers` built-in module in this runtime, it's fine to drop that test and rely on the first (real, unmocked "doesn't throw" behavior) plus `computePurgePaths`'s coverage — note this in your report rather than fighting the mock. The unmockable case is exactly why `purgePaths` must stay a thin, obviously-correct wrapper: the two-line body around the feature-detect is the entire surface that can't be exercised against a real `cache.purge` locally.
+
 - [ ] **Step 4: Run tests, verify they pass**
 
 Run: `npm test -- tests/unit/purge.test.ts`
-Expected: PASS (2 tests).
+Expected: PASS (3 or 4 tests, depending on whether the mock-based test was kept).
 
-Note: `purgePaths` itself is exercised indirectly by the admin save/delete integration tests in Tasks 19–21 (asserting the request succeeds), not directly unit-tested against `cloudflare:workers`'s `cache.purge` — Miniflare's local implementation of Instant Purge is a stub with no observable side effect to assert against outside a real deployment.
+Note: because `purgePaths` no-ops safely when `cache.purge` is unavailable, the admin save/delete/rerender integration tests in Tasks 19–21 will exercise this same no-op fallback path every time they run locally — that's expected and correct, not a gap to work around.
 
 - [ ] **Step 5: Commit**
 
