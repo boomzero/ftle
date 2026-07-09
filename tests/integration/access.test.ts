@@ -1,21 +1,22 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { SignJWT, exportJWK, generateKeyPair, type KeyLike } from "jose";
 import { verifyAccessRequest } from "../../src/auth/access";
 
 const TEAM_DOMAIN = "https://test-team.cloudflareaccess.com";
 const AUD = "test-aud-tag";
 
-let publicJwk: JsonWebKey;
-let privateKey: CryptoKey;
+let publicJwk: Record<string, unknown>;
+let privateKey: KeyLike;
 const kid = "test-key-1";
 
 beforeAll(async () => {
   const { publicKey, privateKey: priv } = await generateKeyPair("RS256");
   privateKey = priv;
-  publicJwk = await exportJWK(publicKey);
-  publicJwk.kid = kid;
-  publicJwk.alg = "RS256";
-  publicJwk.use = "sig";
+  const jwk = await exportJWK(publicKey);
+  jwk.kid = kid;
+  jwk.alg = "RS256";
+  jwk.use = "sig";
+  publicJwk = jwk as unknown as Record<string, unknown>;
 });
 
 afterEach(() => {
