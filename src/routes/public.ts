@@ -52,10 +52,14 @@ publicRoutes.get("/:slug", async (c) => {
   const tagLinks = post.tags
     .map(
       (t) =>
-        `<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/tag/${encodeURIComponent(t)}">${escapeHtml(t)}</a>`,
+        `<a class="rounded-full bg-gray-100 px-3 py-1 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-indigo-950 dark:hover:text-indigo-300" href="/tag/${encodeURIComponent(t)}">${escapeHtml(t)}</a>`,
     )
-    .join(" ");
-  const body = `<article><h1 class="mb-2 text-3xl font-bold tracking-tight">${escapeHtml(post.title)}</h1><p class="mb-8 text-sm text-gray-500 dark:text-gray-400">${post.created_at.slice(0, 10)}</p><div class="prose dark:prose-invert max-w-none">${post.rendered}</div><p class="mt-10 flex flex-wrap gap-3 text-sm">${tagLinks}</p></article>`;
+    .join("");
+  const tagsSection =
+    post.tags.length > 0
+      ? `<p class="mt-10 flex flex-wrap items-center gap-2 text-sm"><span class="text-gray-500 dark:text-gray-400">Tags:</span>${tagLinks}</p>`
+      : "";
+  const body = `<article><h1 class="mb-2 text-3xl font-bold tracking-tight">${escapeHtml(post.title)}</h1><p class="mb-8 text-sm text-gray-500 dark:text-gray-400">${post.created_at.slice(0, 10)}</p><div class="prose dark:prose-invert max-w-none">${post.rendered}</div>${tagsSection}</article>`;
 
   const jsonLd = buildBlogPostingJsonLd({
     url: canonicalUrl,

@@ -48,6 +48,22 @@ describe("public routes", () => {
     expect(res.status).toBe(404);
   });
 
+  it("GET /:slug labels a post's tags and renders each as a pill-styled link, not a bare gray link", async () => {
+    await seedPost({ tags: ["intro", "demo"] });
+    const res = await app.request("/hello-world", {}, env);
+    const html = await res.text();
+    expect(html).toContain("Tags:");
+    expect(html).toMatch(/<a class="[^"]*rounded-full[^"]*" href="\/tag\/intro">intro<\/a>/);
+    expect(html).toMatch(/<a class="[^"]*rounded-full[^"]*" href="\/tag\/demo">demo<\/a>/);
+  });
+
+  it("GET /:slug omits the Tags: label entirely when a post has no tags", async () => {
+    await seedPost({ tags: [] });
+    const res = await app.request("/hello-world", {}, env);
+    const html = await res.text();
+    expect(html).not.toContain("Tags:");
+  });
+
   it("GET /tag/:tag lists only posts with that tag", async () => {
     await seedPost({ slug: "a", tags: ["x"] });
     await seedPost({ slug: "b", tags: ["y"] });
