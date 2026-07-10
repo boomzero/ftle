@@ -6,7 +6,7 @@ import { escapeXml } from "../util/escape";
 export const rssRoutes = new Hono<{ Bindings: Env }>();
 
 rssRoutes.get("/rss.xml", async (c) => {
-  const posts = await listPosts(c.env.DB);
+  const posts = await listPosts(c.env.DB, true);
   const siteUrl = absoluteUrl(c.env.SITE_URL, "/");
   const updated = posts[0]?.updated_at ?? new Date().toISOString();
 

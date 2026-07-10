@@ -13,7 +13,7 @@ function postListItem(post: PostWithTags): string {
 }
 
 publicRoutes.get("/", async (c) => {
-  const posts = await listPosts(c.env.DB);
+  const posts = await listPosts(c.env.DB, true);
   const body = `<h1 class="mb-8 text-3xl font-bold tracking-tight">${escapeHtml(c.env.SITE_TITLE)}</h1><ul class="divide-y divide-gray-200 dark:divide-gray-800">${posts.map(postListItem).join("")}</ul>`;
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
@@ -29,7 +29,7 @@ publicRoutes.get("/", async (c) => {
 publicRoutes.get("/tag/:tag", async (c) => {
   const tag = c.req.param("tag");
   const safeTag = escapeHtml(tag);
-  const posts = await listPostsByTag(c.env.DB, tag);
+  const posts = await listPostsByTag(c.env.DB, tag, true);
   const body = `<h1 class="mb-8 text-3xl font-bold tracking-tight">Tag: ${safeTag}</h1><ul class="divide-y divide-gray-200 dark:divide-gray-800">${posts.map(postListItem).join("")}</ul>`;
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,

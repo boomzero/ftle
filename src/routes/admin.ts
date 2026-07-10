@@ -27,8 +27,13 @@ adminRoutes.get("/", async (c) => {
   const posts = await listPosts(c.env.DB);
   const rows = posts
     .map(
-      (p) =>
-        `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">(${escapeHtml(p.slug)}) — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a></span></li>`,
+      (p) => {
+        const listedBadge = p.listed === 1
+          ? `<span class="rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">listed</span>`
+          : `<span class="rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">unlisted</span>`;
+        const toggleLabel = p.listed === 1 ? "unlist" : "list";
+        return `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">${listedBadge} <form method="post" action="/admin/toggle-listed/${p.id}" class="inline"><button class="text-xs underline hover:text-indigo-600 dark:hover:text-indigo-400">${escapeHtml(toggleLabel)}</button></form> (${escapeHtml(p.slug)}) — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a></span></li>`;
+      },
     )
     .join("");
   const html = renderLayout({
@@ -49,9 +54,11 @@ function editorForm(opts: {
   slug: string;
   tags: string;
   source: string;
+  listed?: boolean;
   error?: string;
 }): string {
   return `
+    <p class="mb-4"><a class="text-sm hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin">← Back to admin</a></p>
     <h1 class="mb-6 text-3xl font-bold tracking-tight">${opts.isEdit ? "Edit" : "New"} Post</h1>
     ${opts.error ? `<p class="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">${escapeHtml(opts.error)}</p>` : ""}
     <form class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}">
@@ -66,6 +73,10 @@ function editorForm(opts: {
       </label>
       <label class="flex flex-col gap-1 text-sm font-medium">Source
         <textarea class="rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea>
+      </label>
+      <label class="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" name="listed" value="1"${opts.listed !== false ? " checked" : ""}>
+        Listed on homepage, tag pages, RSS, and sitemap
       </label>
       <p class="flex gap-3">
         <button class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
@@ -111,6 +122,7 @@ adminRoutes.get("/edit/:id", async (c) => {
       slug: post.slug,
       tags: post.tags.join(", "),
       source: post.source,
+      listed: post.listed === 1,
     }),
     noindex: true,
   });
@@ -149,6 +161,7 @@ adminRoutes.post("/save", async (c) => {
   const slug = String(body.slug ?? "").trim();
   const source = String(body.source ?? "");
   const tags = parseTags(String(body.tags ?? ""));
+  const listed = body.listed === "1";
   const idParam = c.req.query("id");
   const id = idParam ? Number(idParam) : undefined;
 
@@ -165,6 +178,7 @@ adminRoutes.post("/save", async (c) => {
         slug,
         tags: tags.join(", "),
         source,
+        listed,
         error: message,
       }),
       noindex: true,
@@ -195,8 +209,8 @@ adminRoutes.post("/save", async (c) => {
   let saved;
   try {
     saved = id
-      ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags })
-      : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags });
+      ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags, listed })
+      : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags, listed });
   } catch (e) {
     if (e instanceof DuplicateSlugError) {
       return renderError(`That slug is already taken: ${slug}`);
@@ -289,6 +303,30 @@ adminRoutes.post("/delete/:id", async (c) => {
     oldTags: post.tags,
     newTags: [],
   });
+  await purgePaths(paths);
+
+  return c.redirect("/admin", 303);
+});
+
+adminRoutes.post("/toggle-listed/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  const post = await getPostById(c.env.DB, id);
+  if (!post) return c.notFound();
+
+  const newListed = post.listed === 1 ? 0 : 1;
+  await c.env.DB
+    .prepare(`UPDATE posts SET listed = ?, updated_at = ? WHERE id = ?`)
+    .bind(newListed, new Date().toISOString(), id)
+    .run();
+
+  // Purge home, rss, sitemap, and tag pages but NOT the post's own URL —
+  // its content hasn't changed, only its listing status has.
+  const allPaths = computePurgePaths({
+    postPath: `/${encodeURIComponent(post.slug)}`,
+    oldTags: post.tags,
+    newTags: post.tags,
+  });
+  const paths = allPaths.filter((p) => p !== `/${encodeURIComponent(post.slug)}`);
   await purgePaths(paths);
 
   return c.redirect("/admin", 303);

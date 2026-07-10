@@ -15,7 +15,7 @@ Sitemap: ${absoluteUrl(c.env.SITE_URL, "/sitemap.xml")}
 });
 
 seoFileRoutes.get("/sitemap.xml", async (c) => {
-  const posts = await listPosts(c.env.DB);
+  const posts = await listPosts(c.env.DB, true);
   const tags = Array.from(new Set(posts.flatMap((p) => p.tags)));
 
   const urls: { loc: string; lastmod?: string }[] = [

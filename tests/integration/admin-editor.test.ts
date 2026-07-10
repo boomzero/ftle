@@ -63,4 +63,37 @@ describe("admin editor pages", () => {
     expect(html).not.toContain("</textarea><script>alert(1)</script>");
     expect(html).toContain("before &lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt; after");
   });
+
+  it("GET /admin/edit/:id shows listed checkbox checked for listed posts", async () => {
+    const post = await createPost(env.DB, {
+      slug: "listed-post",
+      title: "Listed Post",
+      source: "test",
+      rendered: "<p>test</p>",
+      hasMath: false,
+      tags: [],
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('name="listed"');
+    expect(html).toContain("checked");
+  });
+
+  it("GET /admin/edit/:id shows listed checkbox unchecked for unlisted posts", async () => {
+    const post = await createPost(env.DB, {
+      slug: "unlisted-post",
+      title: "Unlisted Post",
+      source: "test",
+      rendered: "<p>test</p>",
+      hasMath: false,
+      tags: [],
+      listed: false,
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('name="listed"');
+    expect(html).not.toContain("checked");
+  });
 });
