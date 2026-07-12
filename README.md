@@ -27,10 +27,9 @@ Most self-hosted blog engines (WordPress and friends) trade you a web-based edit
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/boomzero/ftle)
 
-This clones the repo into your own GitHub account, provisions a D1 database, and deploys the Worker in a few clicks. It does **not** fully finish the job for you — two manual steps remain before your site is live and safe to use:
+This clones the repo into your own GitHub account, provisions a D1 database, and deploys the Worker in a few clicks. The `deploy` script (`package.json`) runs `wrangler d1 migrations apply DB --remote` before `wrangler deploy`, so the database schema is applied automatically as part of that same build — nothing extra to run.
 
-1. **Apply the database schema.** The button doesn't run migrations. Clone the repo it created, then run `npm run migrate:remote` once against your new D1 database.
-2. **Set up Cloudflare Access.** The button can't create a Zero Trust application on your behalf — until you complete [Cloudflare Access setup](#cloudflare-access-setup-admin-auth), `/admin` is either unprotected or (if `ACCESS_AUD`/`ACCESS_TEAM_DOMAIN` are left as placeholders) simply broken. Do this before you publish anything you care about.
+One manual step remains before your site is safe to use: **set up Cloudflare Access.** The button can't create a Zero Trust application on your behalf — until you complete [Cloudflare Access setup](#cloudflare-access-setup-admin-auth), `/admin` is either unprotected or (if `ACCESS_AUD`/`ACCESS_TEAM_DOMAIN` are left as placeholders) simply broken. Do this before you publish anything you care about.
 
 ### Option B: Manual setup
 
@@ -60,7 +59,7 @@ All configuration lives in `wrangler.jsonc`'s `vars` block — no secrets, no `.
 
 `/admin*` isn't protected by a username/password login — it's protected by [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/), which sits in front of the Worker and only lets a request through after Cloudflare itself has verified your identity. The Worker additionally verifies the `Cf-Access-Jwt-Assertion` JWT in-process via [`jose`](https://github.com/panva/jose) against Access's public keys (`src/auth/access.ts`) as defense in depth, but Access is the actual gate.
 
-1. **Attach your domain to the Worker first.** Your domain needs to already be on Cloudflare (proxied) before it'll show up as an option below — see step 3 of [Deploying](#deploying). Access sits in front of the existing route; it doesn't create one.
+1. **Attach your domain to the Worker first.** Your domain needs to already be on Cloudflare (proxied) before it'll show up as an option below — see step 2 of [Deploying](#deploying). Access sits in front of the existing route; it doesn't create one.
 2. **Create the application.** In the Cloudflare dashboard, go to **Zero Trust → Access controls → Applications → Add an application → Self-hosted**. This is a self-hosted, DNS-routed app (not a "Private" app requiring the WARP client) — visitors reach it through normal HTTPS. Under **Add public hostname**, pick your domain and set the path to `/admin*` so the policy covers the whole admin panel.
 3. **Add an Allow policy restricted to your email.** On the same screen, add a policy with **Action: Allow** and an **Include** rule of type **Emails**, with your email address as the value. Use the exact-match **Emails** selector, not **Emails ending in** a domain — the latter would let anyone with an email at that domain request a login code.
 4. **Leave One-Time PIN as the login method** (it's on by default) unless you already have an identity provider configured — no extra signup service is required for a single-author blog.
@@ -98,14 +97,13 @@ npm run dev             # wrangler dev with local D1
 npm run typecheck       # tsc --noEmit
 npm run migrate:local   # apply D1 migrations to local dev DB
 npm run migrate:remote  # apply D1 migrations to the deployed DB
-npm run deploy           # wrangler deploy
+npm run deploy           # apply pending remote migrations, then wrangler deploy
 ```
 
 ## Deploying
 
-1. `npm run migrate:remote`
-2. `npm run deploy`
-3. In the Cloudflare dashboard, attach your domain to the Worker and confirm the Access application from [setup](#cloudflare-access-setup-admin-auth) covers `/admin*` on that domain.
+1. `npm run deploy` — applies any pending remote D1 migrations, then deploys the Worker.
+2. In the Cloudflare dashboard, attach your domain to the Worker and confirm the Access application from [setup](#cloudflare-access-setup-admin-auth) covers `/admin*` on that domain.
 
 Deploying requires Wrangler ≥ 4.69.0. No cache-purge secrets are needed — this project uses Cloudflare's native Workers Caching (`"cache": { "enabled": true }` in `wrangler.jsonc`), with `ctx.cache.purge()` called in-process on save/delete/rerender via cache-tag-based invalidation.
 

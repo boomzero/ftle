@@ -28,7 +28,7 @@ Reader-facing pages: **0 bytes of JavaScript, 0 blocking external requests, ≤ 
 ```sh
 npm test          # full suite (vitest + @cloudflare/vitest-pool-workers)
 npm run dev       # wrangler dev with local D1
-npm run deploy    # wrangler deploy — only when explicitly asked
+npm run deploy    # applies pending remote D1 migrations, then wrangler deploy — only when explicitly asked
 ```
 
 ## Architecture in one paragraph
