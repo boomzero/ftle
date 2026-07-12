@@ -17,6 +17,7 @@ describe("GET /rss.xml", () => {
       rendered: "<h1>Hello</h1><p>Body text.</p>",
       hasMath: false,
       tags: [],
+      status: "listed",
     });
 
     const res = await app.request("/rss.xml", {}, env);
@@ -38,6 +39,7 @@ describe("GET /rss.xml", () => {
       rendered: "<p>x</p>",
       hasMath: false,
       tags: [],
+      status: "listed",
     });
 
     const res = await app.request("/rss.xml", {}, env);

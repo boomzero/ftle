@@ -16,6 +16,7 @@ async function seedPost(overrides: Partial<Parameters<typeof createPost>[1]> = {
     rendered: "<h1>Hello</h1><p>World.</p>",
     hasMath: false,
     tags: ["intro"],
+    status: "listed",
     ...overrides,
   });
 }

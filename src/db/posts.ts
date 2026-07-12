@@ -1,3 +1,11 @@
+export type PostStatus = 'draft' | 'unlisted' | 'listed';
+
+export const VALID_STATUSES: readonly PostStatus[] = ['draft', 'unlisted', 'listed'];
+
+export function validateStatus(raw: string, fallback: PostStatus): PostStatus {
+  return (VALID_STATUSES as readonly string[]).includes(raw) ? raw as PostStatus : fallback;
+}
+
 export interface Post {
   id: number;
   slug: string;
@@ -5,7 +13,7 @@ export interface Post {
   source: string;
   rendered: string;
   has_math: number;
-  listed: number;
+  status: PostStatus;
   created_at: string;
   updated_at: string;
 }
@@ -21,7 +29,7 @@ export interface PostInput {
   rendered: string;
   hasMath: boolean;
   tags: string[];
-  listed?: boolean;
+  status?: PostStatus;
 }
 
 export class DuplicateSlugError extends Error {
@@ -53,12 +61,13 @@ export async function createPost(db: D1Database, input: PostInput): Promise<Post
   if (await isSlugTaken(db, input.slug)) throw new DuplicateSlugError(input.slug);
 
   const now = new Date().toISOString();
+  const status = input.status ?? 'draft';
   const insertPost = db
     .prepare(
-      `INSERT INTO posts (slug, title, source, rendered, has_math, listed, created_at, updated_at)
+      `INSERT INTO posts (slug, title, source, rendered, has_math, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, input.listed !== false ? 1 : 0, now, now);
+    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, status, now, now);
 
   const result = await insertPost.run();
   const id = result.meta.last_row_id as number;
@@ -92,12 +101,16 @@ export async function updatePost(
   if (await isSlugTaken(db, input.slug, id)) throw new DuplicateSlugError(input.slug);
 
   const now = new Date().toISOString();
+  // updatePost requires an explicit status (the editor form always submits
+  // one).  No fallback — silently defaulting to 'draft' would invert the
+  // old safe default (listed), and a missing status is always a caller bug.
+  const status = input.status!;
   const updatePostStmt = db
     .prepare(
-      `UPDATE posts SET slug = ?, title = ?, source = ?, rendered = ?, has_math = ?, listed = ?, updated_at = ?
+      `UPDATE posts SET slug = ?, title = ?, source = ?, rendered = ?, has_math = ?, status = ?, updated_at = ?
        WHERE id = ?`,
     )
-    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, input.listed !== false ? 1 : 0, now, id);
+    .bind(input.slug, input.title, input.source, input.rendered, input.hasMath ? 1 : 0, status, now, id);
   const deleteTagsStmt = db.prepare(`DELETE FROM post_tags WHERE post_id = ?`).bind(id);
   const tagInserts = input.tags.map((tag) =>
     db.prepare(`INSERT INTO post_tags (post_id, tag) VALUES (?, ?)`).bind(id, tag),
@@ -125,6 +138,14 @@ export async function getPostBySlug(db: D1Database, slug: string): Promise<PostW
   return withTags;
 }
 
+/** Like getPostBySlug but returns null for draft posts — the public read path
+ *  should never surface a draft. */
+export async function getPublicPostBySlug(db: D1Database, slug: string): Promise<PostWithTags | null> {
+  const post = await getPostBySlug(db, slug);
+  if (!post || post.status === 'draft') return null;
+  return post;
+}
+
 export async function getPostById(db: D1Database, id: number): Promise<PostWithTags | null> {
   const post = await db.prepare(`SELECT * FROM posts WHERE id = ?`).bind(id).first<Post>();
   if (!post) return null;
@@ -134,7 +155,7 @@ export async function getPostById(db: D1Database, id: number): Promise<PostWithT
 
 export async function listPosts(db: D1Database, listedOnly = false): Promise<PostWithTags[]> {
   const query = listedOnly
-    ? `SELECT * FROM posts WHERE listed = 1 ORDER BY created_at DESC`
+    ? `SELECT * FROM posts WHERE status = 'listed' ORDER BY created_at DESC`
     : `SELECT * FROM posts ORDER BY created_at DESC`;
   const { results } = await db.prepare(query).all<Post>();
   return attachTags(db, results);
@@ -144,7 +165,7 @@ export async function listPostsByTag(db: D1Database, tag: string, listedOnly = f
   const query = listedOnly
     ? `SELECT posts.* FROM posts
        JOIN post_tags ON post_tags.post_id = posts.id
-       WHERE post_tags.tag = ? AND posts.listed = 1
+       WHERE post_tags.tag = ? AND posts.status = 'listed'
        ORDER BY posts.created_at DESC`
     : `SELECT posts.* FROM posts
        JOIN post_tags ON post_tags.post_id = posts.id

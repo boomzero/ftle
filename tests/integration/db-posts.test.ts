@@ -50,6 +50,7 @@ describe("posts data layer", () => {
       ...baseInput,
       title: "Hello Again",
       tags: ["meta", "new-tag"],
+      status: "listed",
     });
     expect(updated.title).toBe("Hello Again");
     expect(updated.tags.sort()).toEqual(["meta", "new-tag"]);
@@ -71,7 +72,7 @@ describe("posts data layer", () => {
 
   it("updates tags atomically: the old tag set is never briefly empty", async () => {
     const created = await createPost(env.DB, baseInput);
-    await updatePost(env.DB, created.id, { ...baseInput, tags: ["replacement-tag"] });
+    await updatePost(env.DB, created.id, { ...baseInput, tags: ["replacement-tag"], status: "listed" });
 
     const rows = await env.DB
       .prepare("SELECT tag FROM post_tags WHERE post_id = ?")
@@ -102,42 +103,65 @@ describe("posts data layer", () => {
     expect(await isSlugTaken(env.DB, "unused-slug")).toBe(false);
   });
 
-  it("listPosts with listedOnly=true excludes unlisted posts", async () => {
-    await createPost(env.DB, { ...baseInput, slug: "listed-post", listed: true });
-    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", listed: false });
+  it("listPosts with listedOnly=true excludes unlisted and draft posts", async () => {
+    await createPost(env.DB, { ...baseInput, slug: "listed-post", status: "listed" });
+    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", status: "unlisted" });
+    await createPost(env.DB, { ...baseInput, slug: "draft-post", status: "draft" });
     const posts = await listPosts(env.DB, true);
-    // Only listed-post should appear; unlisted-post is filtered out
+    // Only the listed post should appear
     expect(posts.map((p) => p.slug)).toEqual(["listed-post"]);
   });
 
   it("listPosts without listedOnly returns all posts", async () => {
-    await createPost(env.DB, { ...baseInput, slug: "listed-post", listed: true });
-    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", listed: false });
+    await createPost(env.DB, { ...baseInput, slug: "listed-post", status: "listed" });
+    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", status: "unlisted" });
+    await createPost(env.DB, { ...baseInput, slug: "draft-post", status: "draft" });
     const posts = await listPosts(env.DB);
-    expect(posts.map((p) => p.slug).sort()).toEqual(["listed-post", "unlisted-post"].sort());
+    expect(posts.map((p) => p.slug).sort()).toEqual(["draft-post", "listed-post", "unlisted-post"].sort());
   });
 
-  it("listPostsByTag with listedOnly=true filters by listed", async () => {
-    await createPost(env.DB, { ...baseInput, slug: "listed-post", tags: ["shared"], listed: true });
-    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", tags: ["shared"], listed: false });
+  it("listPostsByTag with listedOnly=true filters by listed status only", async () => {
+    await createPost(env.DB, { ...baseInput, slug: "listed-post", tags: ["shared"], status: "listed" });
+    await createPost(env.DB, { ...baseInput, slug: "unlisted-post", tags: ["shared"], status: "unlisted" });
+    await createPost(env.DB, { ...baseInput, slug: "draft-post", tags: ["shared"], status: "draft" });
     const posts = await listPostsByTag(env.DB, "shared", true);
     expect(posts.map((p) => p.slug)).toEqual(["listed-post"]);
   });
 
-  it("createPost with listed=false creates an unlisted post", async () => {
-    const created = await createPost(env.DB, { ...baseInput, slug: "unlisted", listed: false });
-    expect(created.listed).toBe(0);
+  it("createPost with status='unlisted' creates an unlisted post", async () => {
+    const created = await createPost(env.DB, { ...baseInput, slug: "unlisted", status: "unlisted" });
+    expect(created.status).toBe("unlisted");
   });
 
-  it("createPost defaults to listed=1 when listed is omitted", async () => {
+  it("createPost with status='draft' creates a draft post", async () => {
+    const created = await createPost(env.DB, { ...baseInput, slug: "draft", status: "draft" });
+    expect(created.status).toBe("draft");
+  });
+
+  it("createPost defaults to status='draft' when status is omitted", async () => {
     const created = await createPost(env.DB, baseInput);
-    expect(created.listed).toBe(1);
+    expect(created.status).toBe("draft");
   });
 
-  it("updatePost can change listed status", async () => {
-    const created = await createPost(env.DB, { ...baseInput, slug: "toggle-me", listed: true });
-    expect(created.listed).toBe(1);
-    const updated = await updatePost(env.DB, created.id, { ...baseInput, slug: "toggle-me", listed: false });
-    expect(updated.listed).toBe(0);
+  it("updatePost can change status", async () => {
+    const created = await createPost(env.DB, { ...baseInput, slug: "toggle-me", status: "listed" });
+    expect(created.status).toBe("listed");
+    const updated = await updatePost(env.DB, created.id, { ...baseInput, slug: "toggle-me", status: "unlisted" });
+    expect(updated.status).toBe("unlisted");
+  });
+
+  it("status round-trips correctly through create and update", async () => {
+    // Test all three status values survive a full create → read → update → read cycle
+    for (const status of ["draft", "unlisted", "listed"] as const) {
+      const slug = `status-test-${status}`;
+      const created = await createPost(env.DB, { ...baseInput, slug, status });
+      expect(created.status).toBe(status);
+
+      const read = await getPostById(env.DB, created.id);
+      expect(read?.status).toBe(status);
+
+      const updated = await updatePost(env.DB, created.id, { ...baseInput, slug, status: "listed" });
+      expect(updated.status).toBe("listed");
+    }
   });
 });

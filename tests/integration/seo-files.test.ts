@@ -25,6 +25,7 @@ describe("robots.txt and sitemap.xml", () => {
       rendered: "<p>x</p>",
       hasMath: false,
       tags: ["intro"],
+      status: "listed",
     });
     const res = await app.request("/sitemap.xml", {}, env);
     expect(res.status).toBe(200);
@@ -43,6 +44,7 @@ describe("robots.txt and sitemap.xml", () => {
       rendered: "<p>x</p>",
       hasMath: false,
       tags: ["R&D"],
+      status: "listed",
     });
     const res = await app.request("/sitemap.xml", {}, env);
     const xml = await res.text();

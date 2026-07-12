@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
-import { listPosts, getPostById, createPost, updatePost, deletePost, DuplicateSlugError } from "../db/posts";
+import { listPosts, getPostById, createPost, updatePost, deletePost, DuplicateSlugError, validateStatus, type PostStatus } from "../db/posts";
 import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
@@ -23,16 +23,25 @@ adminRoutes.use("*", async (c, next) => {
   await next();
 });
 
+function statusBadge(s: PostStatus): string {
+  const color =
+    s === "listed"  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+    : s === "unlisted" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+    : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+  return `<span class="rounded px-2 py-0.5 text-xs font-medium ${color}">${s}</span>`;
+}
+
 adminRoutes.get("/", async (c) => {
   const posts = await listPosts(c.env.DB);
   const rows = posts
     .map(
       (p) => {
-        const listedBadge = p.listed === 1
-          ? `<span class="rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">listed</span>`
-          : `<span class="rounded px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">unlisted</span>`;
-        const toggleLabel = p.listed === 1 ? "unlist" : "list";
-        return `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">${listedBadge} <form method="post" action="/admin/toggle-listed/${p.id}" class="inline"><button class="text-xs underline hover:text-indigo-600 dark:hover:text-indigo-400">${escapeHtml(toggleLabel)}</button></form> (${escapeHtml(p.slug)}) — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a></span></li>`;
+        const badge = statusBadge(p.status);
+        const viewLink =
+          p.status !== "draft"
+            ? ` — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a>`
+            : "";
+        return `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">${badge} <form method="post" action="/admin/set-status/${p.id}" class="inline"><select name="status" class="text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-900" onchange="this.form.submit()"><option value="draft"${p.status === "draft" ? " selected" : ""}>Draft</option><option value="unlisted"${p.status === "unlisted" ? " selected" : ""}>Unlisted</option><option value="listed"${p.status === "listed" ? " selected" : ""}>Listed</option></select></form> (${escapeHtml(p.slug)})${viewLink}</span></li>`;
       },
     )
     .join("");
@@ -54,9 +63,10 @@ function editorForm(opts: {
   slug: string;
   tags: string;
   source: string;
-  listed?: boolean;
+  status?: PostStatus;
   error?: string;
 }): string {
+  const s = opts.status ?? 'draft';
   return `
     <p class="mb-4"><a class="text-sm hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin">← Back to admin</a></p>
     <h1 class="mb-6 text-3xl font-bold tracking-tight">${opts.isEdit ? "Edit" : "New"} Post</h1>
@@ -74,9 +84,12 @@ function editorForm(opts: {
       <label class="flex flex-col gap-1 text-sm font-medium">Source
         <textarea class="rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea>
       </label>
-      <label class="flex items-center gap-2 text-sm font-medium">
-        <input type="checkbox" name="listed" value="1"${opts.listed !== false ? " checked" : ""}>
-        Listed on homepage, tag pages, RSS, and sitemap
+      <label class="flex flex-col gap-1 text-sm font-medium">Status
+        <select class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="status">
+          <option value="draft"${s === "draft" ? " selected" : ""}>Draft</option>
+          <option value="unlisted"${s === "unlisted" ? " selected" : ""}>Published — unlisted</option>
+          <option value="listed"${s === "listed" ? " selected" : ""}>Published — listed</option>
+        </select>
       </label>
       <p class="flex gap-3">
         <button class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
@@ -122,7 +135,7 @@ adminRoutes.get("/edit/:id", async (c) => {
       slug: post.slug,
       tags: post.tags.join(", "),
       source: post.source,
-      listed: post.listed === 1,
+      status: post.status,
     }),
     noindex: true,
   });
@@ -161,7 +174,8 @@ adminRoutes.post("/save", async (c) => {
   const slug = String(body.slug ?? "").trim();
   const source = String(body.source ?? "");
   const tags = parseTags(String(body.tags ?? ""));
-  const listed = body.listed === "1";
+  const rawStatus = String(body.status ?? "");
+  const status = validateStatus(rawStatus, "draft");
   const idParam = c.req.query("id");
   const id = idParam ? Number(idParam) : undefined;
 
@@ -178,7 +192,7 @@ adminRoutes.post("/save", async (c) => {
         slug,
         tags: tags.join(", "),
         source,
-        listed,
+        status,
         error: message,
       }),
       noindex: true,
@@ -206,11 +220,16 @@ adminRoutes.post("/save", async (c) => {
   const oldTags = existing?.tags ?? [];
   const oldSlug = existing?.slug;
 
+  // For edits, fall back to the existing post's status when the form field
+  // is missing or unrecognised — a stale pre-deploy browser tab without the
+  // new <select> would otherwise silently unpublish a live post.
+  const saveStatus: PostStatus = validateStatus(rawStatus, existing?.status ?? 'draft');
+
   let saved;
   try {
     saved = id
-      ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags, listed })
-      : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags, listed });
+      ? await updatePost(c.env.DB, id, { slug, title, source, rendered, hasMath, tags, status: saveStatus })
+      : await createPost(c.env.DB, { slug, title, source, rendered, hasMath, tags, status: saveStatus });
   } catch (e) {
     if (e instanceof DuplicateSlugError) {
       return renderError(`That slug is already taken: ${slug}`);
@@ -257,6 +276,7 @@ adminRoutes.post("/rerender", async (c) => {
         rendered,
         hasMath,
         tags: post.tags,
+        status: post.status,
       });
       post.tags.forEach((t) => allTags.add(t));
     } catch (e) {
@@ -308,25 +328,29 @@ adminRoutes.post("/delete/:id", async (c) => {
   return c.redirect("/admin", 303);
 });
 
-adminRoutes.post("/toggle-listed/:id", async (c) => {
+adminRoutes.post("/set-status/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const post = await getPostById(c.env.DB, id);
   if (!post) return c.notFound();
 
-  const newListed = post.listed === 1 ? 0 : 1;
+  const body = await c.req.parseBody();
+  const rawStatus = String(body.status ?? "");
+  const newStatus = validateStatus(rawStatus, post.status);
+
   await c.env.DB
-    .prepare(`UPDATE posts SET listed = ?, updated_at = ? WHERE id = ?`)
-    .bind(newListed, new Date().toISOString(), id)
+    .prepare(`UPDATE posts SET status = ?, updated_at = ? WHERE id = ?`)
+    .bind(newStatus, new Date().toISOString(), id)
     .run();
 
-  // Purge home, rss, sitemap, and tag pages but NOT the post's own URL —
-  // its content hasn't changed, only its listing status has.
-  const allPaths = computePurgePaths({
+  // Purge home, rss, sitemap, tag pages, AND the post's own URL.  A
+  // draft ↔ non-draft transition changes 200 ↔ 404 for that URL, so the
+  // stale two-state assumption (post content unchanged → skip post URL) no
+  // longer holds for all three statuses.
+  const paths = computePurgePaths({
     postPath: `/${encodeURIComponent(post.slug)}`,
     oldTags: post.tags,
     newTags: post.tags,
   });
-  const paths = allPaths.filter((p) => p !== `/${encodeURIComponent(post.slug)}`);
   await purgePaths(paths);
 
   return c.redirect("/admin", 303);

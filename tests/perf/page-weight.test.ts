@@ -34,6 +34,7 @@ describe("performance budget", () => {
       rendered,
       hasMath,
       tags: ["reference"],
+      status: "listed",
     });
 
     const res = await app.request("/reference-post", {}, env);
@@ -62,6 +63,7 @@ expect(executableScripts).toHaveLength(0);
         rendered: "<p>x</p>",
         hasMath: false,
         tags: [],
+        status: "listed",
       });
     }
     const res = await app.request("/", {}, env);

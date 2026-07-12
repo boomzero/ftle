@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getPostBySlug, listPosts, listPostsByTag, type PostWithTags } from "../db/posts";
+import { getPublicPostBySlug, listPosts, listPostsByTag, type PostWithTags } from "../db/posts";
 import { renderLayout } from "../layout";
 import { buildDescription, absoluteUrl, buildBlogPostingJsonLd } from "../seo/meta";
 import { KATEX_CSS_PATH } from "../generated/katex-manifest";
@@ -44,7 +44,7 @@ publicRoutes.get("/tag/:tag", async (c) => {
 
 publicRoutes.get("/:slug", async (c) => {
   const slug = c.req.param("slug");
-  const post = await getPostBySlug(c.env.DB, slug);
+  const post = await getPublicPostBySlug(c.env.DB, slug);
   if (!post) return c.notFound();
 
   const canonicalUrl = absoluteUrl(c.env.SITE_URL, `/${encodeURIComponent(post.slug)}`);

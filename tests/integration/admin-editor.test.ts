@@ -22,6 +22,16 @@ describe("admin editor pages", () => {
     expect(html).toMatch(/<h1[^>]*>New Post<\/h1>/);
   });
 
+  it("GET /admin/new preselects the status selector to draft", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    // The draft option must be selected, not just present.
+    expect(html).toContain('name="status"');
+    expect(html).toContain('value="draft" selected');
+  });
+
   it("GET /admin/edit/:id returns the form pre-filled with source, headed 'Edit Post'", async () => {
     const post = await createPost(env.DB, {
       slug: "hello",
@@ -64,7 +74,7 @@ describe("admin editor pages", () => {
     expect(html).toContain("before &lt;/textarea&gt;&lt;script&gt;alert(1)&lt;/script&gt; after");
   });
 
-  it("GET /admin/edit/:id shows listed checkbox checked for listed posts", async () => {
+  it("GET /admin/edit/:id preselects the status selector for a listed post", async () => {
     const post = await createPost(env.DB, {
       slug: "listed-post",
       title: "Listed Post",
@@ -72,15 +82,16 @@ describe("admin editor pages", () => {
       rendered: "<p>test</p>",
       hasMath: false,
       tags: [],
+      status: "listed",
     });
     const headers = await authedHeaders();
     const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
     const html = await res.text();
-    expect(html).toContain('name="listed"');
-    expect(html).toContain("checked");
+    expect(html).toContain('name="status"');
+    expect(html).toContain('value="listed" selected');
   });
 
-  it("GET /admin/edit/:id shows listed checkbox unchecked for unlisted posts", async () => {
+  it("GET /admin/edit/:id preselects the status selector for an unlisted post", async () => {
     const post = await createPost(env.DB, {
       slug: "unlisted-post",
       title: "Unlisted Post",
@@ -88,12 +99,29 @@ describe("admin editor pages", () => {
       rendered: "<p>test</p>",
       hasMath: false,
       tags: [],
-      listed: false,
+      status: "unlisted",
     });
     const headers = await authedHeaders();
     const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
     const html = await res.text();
-    expect(html).toContain('name="listed"');
-    expect(html).not.toContain("checked");
+    expect(html).toContain('name="status"');
+    expect(html).toContain('value="unlisted" selected');
+  });
+
+  it("GET /admin/edit/:id preselects the status selector for a draft post", async () => {
+    const post = await createPost(env.DB, {
+      slug: "draft-post",
+      title: "Draft Post",
+      source: "test",
+      rendered: "<p>test</p>",
+      hasMath: false,
+      tags: [],
+      status: "draft",
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('name="status"');
+    expect(html).toContain('value="draft" selected');
   });
 });

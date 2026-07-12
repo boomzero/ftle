@@ -20,7 +20,7 @@ describe("POST /admin/save", () => {
     const headers = { ...(await authedHeaders()), "Content-Type": "application/x-www-form-urlencoded" };
     const res = await app.request(
       "/admin/save",
-      { method: "POST", headers, body: formBody({ title: "New Post", slug: "new-post", tags: "a, b", source: "# New" }) },
+      { method: "POST", headers, body: formBody({ title: "New Post", slug: "new-post", tags: "a, b", source: "# New", status: "listed" }) },
       env,
     );
     expect(res.status).toBe(303);
@@ -76,7 +76,7 @@ describe("POST /admin/save", () => {
     const headers = { ...(await authedHeaders()), "Content-Type": "application/x-www-form-urlencoded" };
     const res = await app.request(
       `/admin/save?id=${post.id}`,
-      { method: "POST", headers, body: formBody({ title: "After", slug: "editable", tags: "new-tag", source: "# After" }) },
+      { method: "POST", headers, body: formBody({ title: "After", slug: "editable", tags: "new-tag", source: "# After", status: "listed" }) },
       env,
     );
     expect(res.status).toBe(303);
