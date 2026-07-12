@@ -7,7 +7,7 @@ A dynamically-editable blog engine that runs entirely on Cloudflare's free tier 
 
 Most self-hosted blog engines (WordPress and friends) trade you a web-based editor for a PHP server, a MySQL instance, plugin security patches, and a hosting bill. ftle keeps the part that's actually useful — write and publish from a browser, from anywhere — and throws away the rest: it's a single Cloudflare Worker and a D1 (SQLite) database, deployed with one command, with nothing to patch because there's no server process to compromise.
 
-- **Free to run.** Fits comfortably in Cloudflare's free Workers + D1 tier.
+- **Free to run.** Fits comfortably in Cloudflare's free Workers + D1 tier. Edge cache hits skip the Worker and the database entirely — no CPU time billed, no D1 read — so only a cache miss (a new post, or the first reader after a purge) touches either. Saving a post purges just the affected cache tags, so edits still show up immediately; there's no stale-cache tradeoff. (Cache hits still count toward the Free plan's 100,000 requests/day quota — this isn't literally unlimited traffic, just cheap traffic.)
 - **Fast.** Reader-facing pages ship **0 bytes of JavaScript** and **≤ 14KB compressed HTML**, served from Cloudflare's edge cache. A regression test enforces this budget on every commit — see [Performance budget](#performance-budget).
 - **Small attack surface.** No PHP, no plugin ecosystem, no database credentials to leak. The admin panel is gated by [Cloudflare Access](#cloudflare-access-setup-admin-auth) — Cloudflare verifies your identity before a request ever reaches the Worker.
 - **Edit from anywhere.** A web-based Markdown editor with live LaTeX math preview — no local tooling, no build step, no static-site regeneration.
