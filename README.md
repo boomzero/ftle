@@ -89,6 +89,10 @@ Enforced by a regression test (`tests/perf/page-weight.test.ts`), not just a gui
 
 Admin pages are exempt — they may use minimal JS for the editor.
 
+<img src="docs/images/lighthouse-performance-100.png" alt="Lighthouse Performance score of 100, with First Contentful Paint 0.2s, Largest Contentful Paint 0.4s, Total Blocking Time 0ms, Cumulative Layout Shift 0, Speed Index 0.7s" width="700">
+
+*A Lighthouse audit of a post page on a live deployment, captured 2026-07-12. Your own numbers will vary with content and network conditions — [run your own audit](https://pagespeed.web.dev) to check.*
+
 ## Commands
 
 ```sh
