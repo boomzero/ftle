@@ -4,6 +4,7 @@ import { renderLayout } from "../layout";
 import { buildDescription, absoluteUrl, buildBlogPostingJsonLd } from "../seo/meta";
 import { KATEX_CSS_PATH } from "../generated/katex-manifest";
 import { escapeHtml } from "../util/escape";
+import { parseNavLinks } from "../util/nav-links";
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -17,6 +18,7 @@ publicRoutes.get("/", async (c) => {
   const body = `<h1 class="mb-8 text-3xl font-bold tracking-tight">${escapeHtml(c.env.SITE_TITLE)}</h1><ul class="divide-y divide-gray-200 dark:divide-gray-800">${posts.map(postListItem).join("")}</ul>`;
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: c.env.SITE_TITLE,
     description: c.env.SITE_DESCRIPTION,
     canonicalUrl: absoluteUrl(c.env.SITE_URL, "/"),
@@ -33,6 +35,7 @@ publicRoutes.get("/tag/:tag", async (c) => {
   const body = `<h1 class="mb-8 text-3xl font-bold tracking-tight">Tag: ${safeTag}</h1><ul class="divide-y divide-gray-200 dark:divide-gray-800">${posts.map(postListItem).join("")}</ul>`;
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: `Tag: ${tag}`,
     description: `Posts tagged "${tag}" on ${c.env.SITE_TITLE}.`,
     canonicalUrl: absoluteUrl(c.env.SITE_URL, `/tag/${encodeURIComponent(tag)}`),
@@ -72,6 +75,7 @@ publicRoutes.get("/:slug", async (c) => {
 
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: post.title,
     description,
     canonicalUrl,

@@ -1,6 +1,7 @@
 {
   "name": "ftle",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "predev": "npm run prepare:katex && npm run prepare:css && wrangler types",

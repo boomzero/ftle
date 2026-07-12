@@ -24,10 +24,31 @@ describe("renderLayout", () => {
     expect(html).not.toContain('rel="stylesheet" href="http');
   });
 
-  it("includes external nav links to twig.boomzero.uk and sinv.boomzero.uk alongside the site title and RSS link", () => {
+  it("renders no extra nav links by default", () => {
     const html = renderLayout(baseOpts);
-    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/twig\.boomzero\.uk"[^>]*>[^<]*<\/a>[\s\S]*<\/nav>/);
-    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/sinv\.boomzero\.uk"[^>]*>[^<]*<\/a>[\s\S]*<\/nav>/);
+    const nav = html.match(/<nav[^>]*>[\s\S]*?<\/nav>/)![0];
+    expect(nav.match(/<a /g)).toHaveLength(2);
+  });
+
+  it("renders custom nav links when navLinks is provided", () => {
+    const html = renderLayout({
+      ...baseOpts,
+      navLinks: [
+        { label: "Twig", url: "https://twig.example.com" },
+        { label: "Sinv", url: "https://sinv.example.com" },
+      ],
+    });
+    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/twig\.example\.com"[^>]*>Twig<\/a>[\s\S]*<\/nav>/);
+    expect(html).toMatch(/<nav[^>]*>[\s\S]*<a[^>]*href="https:\/\/sinv\.example\.com"[^>]*>Sinv<\/a>[\s\S]*<\/nav>/);
+  });
+
+  it("escapes nav link label and url", () => {
+    const html = renderLayout({
+      ...baseOpts,
+      navLinks: [{ label: "<script>1</script>", url: 'https://example.com/"onmouseover=alert(1)' }],
+    });
+    expect(html).not.toContain("<script>1</script>");
+    expect(html).not.toContain('href="https://example.com/"onmouseover=alert(1)"');
   });
 
   it("puts the background/text color on <html>, not just the centered <body> column, so it fills the full viewport instead of stopping at the content's max-width", () => {

@@ -1,6 +1,11 @@
 import { SITE_CSS } from "./generated/site-css";
 import { escapeAttr, escapeHtml } from "./util/escape";
 
+export interface NavLink {
+  label: string;
+  url: string;
+}
+
 export interface LayoutOptions {
   siteTitle: string;
   pageTitle: string;
@@ -13,6 +18,7 @@ export interface LayoutOptions {
   jsonLd?: string;
   noindex?: boolean;
   rssUrl?: string;
+  navLinks?: NavLink[];
 }
 
 export function renderLayout(opts: LayoutOptions): string {
@@ -28,7 +34,15 @@ export function renderLayout(opts: LayoutOptions): string {
     jsonLd,
     noindex,
     rssUrl,
+    navLinks = [],
   } = opts;
+
+  const navLinksHtml = navLinks
+    .map(
+      (link) =>
+        `<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="${escapeAttr(link.url)}">${escapeHtml(link.label)}</a>`,
+    )
+    .join("");
 
   const title = pageTitle === siteTitle ? siteTitle : `${pageTitle} — ${siteTitle}`;
   const safeSiteTitle = escapeHtml(siteTitle);
@@ -52,9 +66,7 @@ ${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr
 <nav class="mb-10 flex gap-4 text-sm">
 <a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/">${safeSiteTitle}</a>
 <a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/rss.xml">RSS</a>
-<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="https://twig.boomzero.uk">Twig</a>
-<a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="https://sinv.boomzero.uk">Sinv</a>
-</nav>
+${navLinksHtml}</nav>
 ${bodyHtml}
 <footer class="mt-16 text-sm text-gray-500 dark:text-gray-400">${safeSiteTitle}</footer>
 </body>

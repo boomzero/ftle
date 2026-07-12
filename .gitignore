@@ -6,3 +6,6 @@ public/katex.*.css
 public/fonts/
 src/generated/
 .dev.vars
+.DS_Store
+docs/superpowers/
+.superpowers/

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI agents (and humans) working on **ftle**, a personal blog engine on Cloudflare Workers + D1. Read the design spec first: `docs/superpowers/specs/2026-07-08-ftle-design.md`.
+Guidance for AI agents (and humans) working on **ftle**, a self-hostable blog engine on Cloudflare Workers + D1. See the [README](README.md) for setup and the "Architecture in one paragraph" section below for the design.
 
 ## The two non-negotiables
 
@@ -41,7 +41,7 @@ Rendering happens at **write time**: saving a post runs Markdown (`marked`, raw 
 - Site CSS lives in the layout template and is inlined into every page — no external stylesheet (the versioned KaTeX CSS is the sole exception, and only on `has_math` pages).
 - Schema changes go through numbered migration files applied with `wrangler d1 migrations`.
 - Save-path errors must return the editor with the user's submitted source intact — losing typed work is a bug.
-- Commit messages: imperative mood, one logical change per commit, spec/plan updates committed with the code they describe.
+- Commit messages: imperative mood, one logical change per commit. Design notes and implementation plans (via the Superpowers skill) live under `docs/superpowers/`, which is gitignored — keep them local, not in commits.
 
 ## When unsure
 

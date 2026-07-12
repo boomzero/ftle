@@ -6,6 +6,7 @@ import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
 import { KatexRenderError } from "../render/katex-render";
 import { escapeAttr, escapeHtml } from "../util/escape";
+import { parseNavLinks } from "../util/nav-links";
 import { SITE_CSS } from "../generated/site-css";
 import { KATEX_CSS_PATH } from "../generated/katex-manifest";
 
@@ -47,6 +48,7 @@ adminRoutes.get("/", async (c) => {
     .join("");
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: "Admin",
     description: "Admin post list.",
     canonicalUrl: `${c.env.SITE_URL}/admin`,
@@ -103,6 +105,7 @@ function editorForm(opts: {
 adminRoutes.get("/new", (c) => {
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: "New Post",
     description: "New post editor.",
     canonicalUrl: `${c.env.SITE_URL}/admin/new`,
@@ -125,6 +128,7 @@ adminRoutes.get("/edit/:id", async (c) => {
   if (!post) return c.notFound();
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: `Edit: ${post.title}`,
     description: "Post editor.",
     canonicalUrl: `${c.env.SITE_URL}/admin/edit/${id}`,
@@ -182,6 +186,7 @@ adminRoutes.post("/save", async (c) => {
   const renderError = (message: string) => {
     const html = renderLayout({
       siteTitle: c.env.SITE_TITLE,
+      navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
       pageTitle: id ? "Edit Post" : "New Post",
       description: "Post editor.",
       canonicalUrl: `${c.env.SITE_URL}/admin/${id ? `edit/${id}` : "new"}`,
@@ -300,6 +305,7 @@ adminRoutes.post("/rerender", async (c) => {
       .join("");
     const html = renderLayout({
       siteTitle: c.env.SITE_TITLE,
+      navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
       pageTitle: "Rerender",
       description: "Rerender results.",
       canonicalUrl: `${c.env.SITE_URL}/admin`,

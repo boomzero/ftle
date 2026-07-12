@@ -5,6 +5,7 @@ import { publicRoutes } from "./routes/public";
 import { adminRoutes } from "./routes/admin";
 import { renderLayout } from "./layout";
 import { absoluteUrl } from "./seo/meta";
+import { parseNavLinks } from "./util/nav-links";
 
 /** Maps a request path to a Cache-Tag value for CDN cache invalidation. */
 function cacheTagForPath(path: string): string | null {
@@ -38,6 +39,7 @@ app.route("/", publicRoutes);
 app.notFound((c) => {
   const html = renderLayout({
     siteTitle: c.env.SITE_TITLE,
+    navLinks: parseNavLinks(c.env.SITE_NAV_LINKS),
     pageTitle: "Page Not Found",
     description: "This page does not exist.",
     canonicalUrl: absoluteUrl(c.env.SITE_URL, c.req.path),
