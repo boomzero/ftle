@@ -1,0 +1,77 @@
+// Admin editor enhancements: live server-rendered preview, keyboard
+// shortcuts, Tab indentation, and a dirty guard. Loaded only on
+// /admin/new and /admin/edit/:id. Reader-facing pages ship no JS.
+//
+// The pure text transforms below are unit-tested (tests/unit/
+// editor-transforms.test.ts); the DOM wiring at the bottom only runs in a
+// browser.
+
+/** @typedef {{ text: string, selectionStart: number, selectionEnd: number }} TextState */
+
+export function wrapSelection(state, before, after = before) {
+  const { text, selectionStart: start, selectionEnd: end } = state;
+  const inner = text.slice(start, end);
+  return {
+    text: text.slice(0, start) + before + inner + after + text.slice(end),
+    selectionStart: start + before.length,
+    selectionEnd: end + before.length,
+  };
+}
+
+export function makeLink(state) {
+  const { text, selectionStart: start, selectionEnd: end } = state;
+  const inner = text.slice(start, end);
+  const replaced = "[" + inner + "]()";
+  // With text selected the next thing to type is the URL; with nothing
+  // selected it's the link text.
+  const cursor = inner.length > 0 ? start + replaced.length - 1 : start + 1;
+  return {
+    text: text.slice(0, start) + replaced + text.slice(end),
+    selectionStart: cursor,
+    selectionEnd: cursor,
+  };
+}
+
+export function indentLines(state) {
+  const { text, selectionStart: start, selectionEnd: end } = state;
+  if (!text.slice(start, end).includes("\n")) {
+    return {
+      text: text.slice(0, start) + "  " + text.slice(end),
+      selectionStart: start + 2,
+      selectionEnd: start + 2,
+    };
+  }
+  const blockStart = text.lastIndexOf("\n", start - 1) + 1;
+  const block = text.slice(blockStart, end);
+  // Prefix each line start within the block; a selection ending exactly on
+  // a newline must not indent the following line.
+  const indented = "  " + block.replace(/\n(?!$)/g, "\n  ");
+  return {
+    text: text.slice(0, blockStart) + indented + text.slice(end),
+    selectionStart: start + 2,
+    selectionEnd: end + (indented.length - block.length),
+  };
+}
+
+export function dedentLines(state) {
+  const { text, selectionStart: start, selectionEnd: end } = state;
+  const blockStart = text.lastIndexOf("\n", start - 1) + 1;
+  // Extend to the end of the line containing the selection end, so a
+  // collapsed cursor at a line start still dedents that line.
+  let blockEnd = text.indexOf("\n", end);
+  if (blockEnd === -1) blockEnd = text.length;
+  const block = text.slice(blockStart, blockEnd);
+  let removedFirst = 0;
+  let removedBeforeEnd = 0;
+  const dedented = block.replace(/(^|\n)( {1,2})/g, (match, boundary, spaces, offset) => {
+    if (offset === 0 && boundary === "") removedFirst = spaces.length;
+    if (blockStart + offset + boundary.length < end) removedBeforeEnd += spaces.length;
+    return boundary;
+  });
+  const newStart = Math.max(blockStart, start - removedFirst);
+  return {
+    text: text.slice(0, blockStart) + dedented + text.slice(blockEnd),
+    selectionStart: newStart,
+    selectionEnd: Math.max(newStart, end - removedBeforeEnd),
+  };
+}
