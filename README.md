@@ -65,7 +65,9 @@ All configuration lives in `wrangler.jsonc`'s `vars` block — no secrets, no `.
 4. **Leave One-Time PIN as the login method** (it's on by default) unless you already have an identity provider configured — no extra signup service is required for a single-author blog.
 5. **Save the application**, then find its **AUD tag**: back in **Access controls → Applications**, select your app, open **Configure**, and copy the **Application Audience (AUD) Tag** from the Overview/Additional settings panel. Paste it into `wrangler.jsonc`'s `ACCESS_AUD`.
 6. **Find your team domain**: **Zero Trust → Settings → Custom Pages** (or **General**) shows your **Team name and domain**, in the form `https://<your-team>.cloudflareaccess.com`. Paste it into `ACCESS_TEAM_DOMAIN`.
-7. Redeploy (or just apply the new vars with `npx wrangler deploy`). Visiting `/admin` should now redirect you through a Cloudflare-hosted login page before the Worker ever sees the request.
+
+   If you deployed via the button and don't have `wrangler` set up locally, you don't need to edit `wrangler.jsonc` at all — set both values as plaintext environment variables instead, in **Workers & Pages → your Worker → Settings → Variables and Secrets**.
+7. Redeploy (or just apply the new vars with `npx wrangler deploy`). Visiting `/admin` should now redirect you through a Cloudflare-hosted login page before the Worker ever sees the request. If you set the vars via the dashboard instead, saving them there applies immediately — no separate deploy step needed.
 
 No other secrets are required — there's no client secret, API token, or session cookie for the Worker to manage.
 
