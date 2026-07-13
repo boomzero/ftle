@@ -16,6 +16,7 @@ Most self-hosted blog engines (WordPress and friends) trade you a web-based edit
 
 - Markdown posts with raw HTML passthrough and server-side [KaTeX](https://katex.org) math rendering (`$inline$` and `$$display$$`)
 - Draft / unlisted / listed post visibility
+- Image uploads from the editor — button or paste — via a pluggable external host (see [Image uploads](#image-uploads))
 - Tags, an Atom feed (`/rss.xml`), `sitemap.xml`, and `robots.txt`
 - OpenGraph, Twitter Card, and JSON-LD `BlogPosting` metadata on every post
 - Dark-mode-aware styling with Tailwind, inlined into each page (no external stylesheet)
@@ -52,8 +53,17 @@ All configuration lives in `wrangler.jsonc`'s `vars` block — no secrets, no `.
 | `SITE_DESCRIPTION` | Default meta description |
 | `SITE_AUTHOR` | Author name, used in feed/JSON-LD metadata |
 | `SITE_NAV_LINKS` | Optional extra nav links, as `Label\|URL` pairs separated by commas, e.g. `Twig\|https://twig.example.com,Sinv\|https://sinv.example.com`. Leave empty for no extra links. |
+| `IMAGE_UPLOAD_URL` | Base URL of the image-hosting service the editor uploads to — see [Image uploads](#image-uploads). Defaults to `https://image.langningchen.com`. |
 | `ACCESS_TEAM_DOMAIN` | Your Cloudflare Access team domain — see below |
 | `ACCESS_AUD` | Your Access application's AUD tag — see below |
+
+## Image uploads
+
+The admin editor can upload images straight from the browser — via an "Insert image" button, or by pasting a screenshot directly into the source textarea. ftle has no built-in object storage (no R2, no KV), so uploads go straight from the browser to an external image-hosting service configured via `IMAGE_UPLOAD_URL`.
+
+The default, `https://image.langningchen.com`, is a hosted instance of [langningchen/Image](https://github.com/langningchen/Image) (GPL-3.0) — a small Cloudflare Worker that stores uploaded images in a private GitHub repo and serves them back over HTTP. ftle uses it purely as a hosted HTTP API (no code from that project is vendored into this repo); many thanks to its author for letting ftle's editor use it, credited next to the upload button in the admin UI.
+
+Uploaded images live on that external host indefinitely — deleting a post, or removing an image reference from its source, does not delete the image from the host. If you'd rather not depend on someone else's instance, point `IMAGE_UPLOAD_URL` at your own deployment of [langningchen/Image](https://github.com/langningchen/Image) (or a compatible host exposing the same `POST /upload` / `GET /:id` API).
 
 ## Cloudflare Access setup (admin auth)
 
@@ -115,7 +125,7 @@ Deploying requires Wrangler ≥ 4.69.0. No cache-purge secrets are needed — th
 
 ## Known limitations
 
-Explicitly out of scope for v1: image uploads, comments, search, and multi-author support. KaTeX assets are self-hosted but not glyph-subsetted yet (loaded only on pages containing math, so this doesn't affect the 14KB budget on pages without it).
+Explicitly out of scope for v1: comments, search, and multi-author support. KaTeX assets are self-hosted but not glyph-subsetted yet (loaded only on pages containing math, so this doesn't affect the 14KB budget on pages without it).
 
 ## License
 
