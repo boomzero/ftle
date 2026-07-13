@@ -10,4 +10,6 @@ declare module "*admin-editor.mjs" {
   export function makeLink(state: TextState): TextState;
   export function indentLines(state: TextState): TextState;
   export function dedentLines(state: TextState): TextState;
+  export function insertAtCursor(state: TextState, insertText: string): TextState;
+  export function makeUploadPlaceholder(token: string): string;
 }

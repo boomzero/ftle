@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wrapSelection, makeLink, indentLines, dedentLines } from "../../public/admin-editor.mjs";
+import { wrapSelection, makeLink, indentLines, dedentLines, insertAtCursor, makeUploadPlaceholder } from "../../public/admin-editor.mjs";
 
 describe("wrapSelection", () => {
   it("wraps the selected text in the marker and keeps the inner text selected", () => {
@@ -113,5 +113,39 @@ describe("dedentLines", () => {
       selectionStart: 1,
       selectionEnd: 1,
     });
+  });
+});
+
+describe("insertAtCursor", () => {
+  it("inserts text at a collapsed cursor and moves the cursor to the end of the inserted text", () => {
+    expect(insertAtCursor({ text: "ab", selectionStart: 1, selectionEnd: 1 }, "XYZ")).toEqual({
+      text: "aXYZb",
+      selectionStart: 4,
+      selectionEnd: 4,
+    });
+  });
+
+  it("replaces a selection with the inserted text", () => {
+    expect(
+      insertAtCursor({ text: "hello world", selectionStart: 6, selectionEnd: 11 }, "there"),
+    ).toEqual({ text: "hello there", selectionStart: 11, selectionEnd: 11 });
+  });
+
+  it("inserts at the start of an empty string", () => {
+    expect(insertAtCursor({ text: "", selectionStart: 0, selectionEnd: 0 }, "hi")).toEqual({
+      text: "hi",
+      selectionStart: 2,
+      selectionEnd: 2,
+    });
+  });
+});
+
+describe("makeUploadPlaceholder", () => {
+  it("builds a placeholder markdown image embedding the given token", () => {
+    expect(makeUploadPlaceholder("a1b2")).toBe("![Uploading a1b2…]()");
+  });
+
+  it("produces different placeholders for different tokens", () => {
+    expect(makeUploadPlaceholder("aaa")).not.toBe(makeUploadPlaceholder("bbb"));
   });
 });

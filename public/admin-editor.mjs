@@ -76,6 +76,20 @@ export function dedentLines(state) {
   };
 }
 
+export function insertAtCursor(state, insertText) {
+  const { text, selectionStart: start, selectionEnd: end } = state;
+  const cursor = start + insertText.length;
+  return {
+    text: text.slice(0, start) + insertText + text.slice(end),
+    selectionStart: cursor,
+    selectionEnd: cursor,
+  };
+}
+
+export function makeUploadPlaceholder(token) {
+  return `![Uploading ${token}…]()`;
+}
+
 // ---------------------------------------------------------------------------
 // DOM wiring — browser only. Guarded so the module can be imported by tests
 // (vitest workers pool) and node without a document.
