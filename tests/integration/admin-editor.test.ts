@@ -167,6 +167,28 @@ describe("admin editor pages", () => {
     expect(html).toContain('name="preview"');
   });
 
+  it("GET /admin/new renders the configured image upload URL on the editor form", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('data-image-upload-url="https://image.langningchen.com"');
+  });
+
+  it("GET /admin/edit/:id renders the same image upload URL", async () => {
+    const post = await createPost(env.DB, {
+      slug: "upload-url-edit",
+      title: "Upload URL Edit",
+      source: "body",
+      rendered: "<p>body</p>",
+      hasMath: false,
+      tags: [],
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('data-image-upload-url="https://image.langningchen.com"');
+  });
+
   // The ? button opens a modal listing the editor's keyboard shortcuts.
   // The modal markup is editor-only — it must not leak onto the post list.
   function assertShortcutsHelp(html: string) {

@@ -67,13 +67,14 @@ function editorForm(opts: {
   source: string;
   status?: PostStatus;
   error?: string;
+  imageUploadUrl: string;
 }): string {
   const s = opts.status ?? 'draft';
   return `
     <p class="mb-4"><a class="text-sm hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin">← Back to admin</a></p>
     <h1 class="mb-6 text-3xl font-bold tracking-tight">${opts.isEdit ? "Edit" : "New"} Post</h1>
     ${opts.error ? `<p class="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">${escapeHtml(opts.error)}</p>` : ""}
-    <form id="editor-form" class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}">
+    <form id="editor-form" class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}" data-image-upload-url="${escapeAttr(opts.imageUploadUrl)}">
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label class="flex flex-col gap-1 text-sm font-medium">Title
           <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="title" value="${escapeAttr(opts.title)}">
@@ -141,6 +142,7 @@ adminRoutes.get("/new", (c) => {
       slug: "",
       tags: "",
       source: "",
+      imageUploadUrl: c.env.IMAGE_UPLOAD_URL,
     }),
     noindex: true,
     wide: true,
@@ -166,6 +168,7 @@ adminRoutes.get("/edit/:id", async (c) => {
       tags: post.tags.join(", "),
       source: post.source,
       status: post.status,
+      imageUploadUrl: c.env.IMAGE_UPLOAD_URL,
     }),
     noindex: true,
     wide: true,
@@ -226,6 +229,7 @@ adminRoutes.post("/save", async (c) => {
         source,
         status,
         error: message,
+        imageUploadUrl: c.env.IMAGE_UPLOAD_URL,
       }),
       noindex: true,
       wide: true,

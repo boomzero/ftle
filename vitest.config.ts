@@ -16,6 +16,7 @@ export default defineConfig(async () => {
             SITE_URL: "https://example.com",
             ACCESS_TEAM_DOMAIN: "https://test-team.cloudflareaccess.com",
             ACCESS_AUD: "test-aud-tag",
+            IMAGE_UPLOAD_URL: "https://image.langningchen.com",
           },
         },
       }),
