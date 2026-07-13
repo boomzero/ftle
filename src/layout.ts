@@ -17,6 +17,7 @@ export interface LayoutOptions {
   ogType?: "website" | "article";
   jsonLd?: string;
   noindex?: boolean;
+  wide?: boolean;
   rssUrl?: string;
   navLinks?: NavLink[];
 }
@@ -33,6 +34,7 @@ export function renderLayout(opts: LayoutOptions): string {
     ogType = "website",
     jsonLd,
     noindex,
+    wide,
     rssUrl,
     navLinks = [],
   } = opts;
@@ -62,7 +64,7 @@ ${noindex ? '<meta name="robots" content="noindex">\n' : ""}<meta property="og:t
 <meta name="twitter:card" content="summary">
 ${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr(rssUrl)}">\n` : ""}${hasMath && katexCssPath ? `<link rel="stylesheet" href="${escapeAttr(katexCssPath)}">\n` : ""}${jsonLd ? `<script type="application/ld+json">${jsonLd.replace(/</g, "\\u003c")}</script>\n` : ""}<style>${SITE_CSS}</style>
 </head>
-<body class="mx-auto max-w-4xl px-4 py-12 font-sans leading-relaxed">
+<body class="mx-auto ${wide ? "max-w-7xl" : "max-w-4xl"} px-4 py-12 font-sans leading-relaxed">
 <nav class="mb-10 flex gap-4 text-sm">
 <a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/">${safeSiteTitle}</a>
 <a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/rss.xml">RSS</a>

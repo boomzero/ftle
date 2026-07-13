@@ -115,4 +115,20 @@ describe("renderLayout", () => {
     expect(html).not.toContain("</script><script>alert(1)</script>");
     expect(html).toContain('"headline":"a\\u003c/script>\\u003cscript>alert(1)\\u003c/script>"');
   });
+
+  // Assert on the <body> tag's class list, not the whole HTML: the compiled
+  // Tailwind CSS is inlined into every page and mentions both class names.
+  it("keeps the default max-w-4xl container when wide is not set", () => {
+    const html = renderLayout(baseOpts);
+    const bodyClasses = html.match(/<body class="([^"]*)"/)![1];
+    expect(bodyClasses).toContain("max-w-4xl");
+    expect(bodyClasses).not.toContain("max-w-7xl");
+  });
+
+  it("uses a max-w-7xl container when wide is true", () => {
+    const html = renderLayout({ ...baseOpts, wide: true });
+    const bodyClasses = html.match(/<body class="([^"]*)"/)![1];
+    expect(bodyClasses).toContain("max-w-7xl");
+    expect(bodyClasses).not.toContain("max-w-4xl");
+  });
 });
