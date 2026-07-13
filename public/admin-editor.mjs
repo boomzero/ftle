@@ -215,6 +215,95 @@ function init() {
       if (e.key === "Escape" && !shortcutsModal.hidden) close();
     });
   }
+
+  // Image upload: the "Insert image" button opens a file picker; pasting an
+  // image into the source textarea uploads it the same way. Both paths
+  // share uploadImage(), which drops in a placeholder immediately (each
+  // upload gets its own random token, so two uploads in flight at once
+  // don't clobber each other's placeholder text) and swaps it for the
+  // final markdown -- or removes it and shows an error -- once the
+  // request resolves.
+  const imageUploadButton = document.getElementById("image-upload-button");
+  const imageFileInput = document.getElementById("image-file-input");
+  const uploadStatus = document.getElementById("upload-status");
+  const imageUploadUrl = (form.dataset.imageUploadUrl || "").replace(/\/$/, "");
+  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+  function showUploadError(message) {
+    if (!uploadStatus) return;
+    uploadStatus.textContent = message;
+    uploadStatus.hidden = false;
+  }
+
+  function readAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadImage(file) {
+    if (!imageUploadUrl) {
+      showUploadError("Image upload is not configured.");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showUploadError("Image is too large (max 10MB).");
+      return;
+    }
+    if (uploadStatus) uploadStatus.hidden = true;
+
+    const token = Math.random().toString(36).slice(2, 10);
+    const placeholder = makeUploadPlaceholder(token);
+    apply((state) => insertAtCursor(state, placeholder));
+
+    let dataUrl;
+    try {
+      dataUrl = await readAsDataURL(file);
+    } catch {
+      replaceText(source, source.value.replace(placeholder, ""));
+      showUploadError("Could not read the selected file.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${imageUploadUrl}/upload`, { method: "POST", body: dataUrl });
+      const body = await res.text();
+      if (!res.ok) throw new Error(body || `HTTP ${res.status}`);
+      replaceText(source, source.value.replace(placeholder, `![](${imageUploadUrl}/${body})`));
+      dirty = true;
+      schedulePreview();
+    } catch (e) {
+      replaceText(source, source.value.replace(placeholder, ""));
+      showUploadError("Image upload failed: " + (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  if (imageUploadButton && imageFileInput) {
+    imageUploadButton.addEventListener("click", () => imageFileInput.click());
+    imageFileInput.addEventListener("change", () => {
+      const file = imageFileInput.files && imageFileInput.files[0];
+      imageFileInput.value = "";
+      if (file) uploadImage(file);
+    });
+  }
+
+  source.addEventListener("paste", (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          uploadImage(file);
+        }
+        return;
+      }
+    }
+  });
 }
 
 if (typeof document !== "undefined") {
