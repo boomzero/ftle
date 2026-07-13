@@ -124,4 +124,46 @@ describe("admin editor pages", () => {
     expect(html).toContain('name="status"');
     expect(html).toContain('value="draft" selected');
   });
+
+  it("GET /admin/new wires up the live editor: script, panes, ids, wide layout", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('<script type="module" src="/admin-editor.mjs"></script>');
+    expect(html).toContain('id="editor-form"');
+    expect(html).toContain('id="editor-source"');
+    expect(html).toContain('id="editor-preview"');
+    expect(html).toContain('id="preview-status"');
+    expect(html).toContain('id="preview-button"');
+    expect(html).toContain("lg:grid-cols-2"); // editor and preview side by side
+    // Wide layout: check the <body> class list (the inlined CSS mentions
+    // every generated class name, so a whole-HTML toContain would be vacuous).
+    expect(html.match(/<body class="([^"]*)"/)![1]).toContain("max-w-7xl");
+  });
+
+  it("GET /admin/edit/:id wires up the live editor the same way", async () => {
+    const post = await createPost(env.DB, {
+      slug: "wired",
+      title: "Wired",
+      source: "hello",
+      rendered: "<p>hello</p>",
+      hasMath: false,
+      tags: [],
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('<script type="module" src="/admin-editor.mjs"></script>');
+    expect(html).toContain('id="editor-source"');
+    expect(html.match(/<body class="([^"]*)"/)![1]).toContain("max-w-7xl");
+  });
+
+  it("keeps the no-JS preview fallback: form posts to /admin/preview targeting the named iframe", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    const html = await res.text();
+    expect(html).toContain('formaction="/admin/preview"');
+    expect(html).toContain('formtarget="preview"');
+    expect(html).toContain('name="preview"');
+  });
 });

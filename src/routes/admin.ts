@@ -73,32 +73,40 @@ function editorForm(opts: {
     <p class="mb-4"><a class="text-sm hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin">← Back to admin</a></p>
     <h1 class="mb-6 text-3xl font-bold tracking-tight">${opts.isEdit ? "Edit" : "New"} Post</h1>
     ${opts.error ? `<p class="mb-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">${escapeHtml(opts.error)}</p>` : ""}
-    <form class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}">
-      <label class="flex flex-col gap-1 text-sm font-medium">Title
-        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="title" value="${escapeAttr(opts.title)}">
-      </label>
-      <label class="flex flex-col gap-1 text-sm font-medium">Slug
-        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="slug" value="${escapeAttr(opts.slug)}">
-      </label>
-      <label class="flex flex-col gap-1 text-sm font-medium">Tags
-        <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="tags" value="${escapeAttr(opts.tags)}">
-      </label>
-      <label class="flex flex-col gap-1 text-sm font-medium">Source
-        <textarea class="rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source" rows="20" cols="80">${escapeHtml(opts.source)}</textarea>
-      </label>
-      <label class="flex flex-col gap-1 text-sm font-medium">Status
-        <select class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="status">
-          <option value="draft"${s === "draft" ? " selected" : ""}>Draft</option>
-          <option value="unlisted"${s === "unlisted" ? " selected" : ""}>Published — unlisted</option>
-          <option value="listed"${s === "listed" ? " selected" : ""}>Published — listed</option>
-        </select>
-      </label>
+    <form id="editor-form" class="flex flex-col gap-4" method="post" action="${escapeAttr(opts.action)}">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label class="flex flex-col gap-1 text-sm font-medium">Title
+          <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="title" value="${escapeAttr(opts.title)}">
+        </label>
+        <label class="flex flex-col gap-1 text-sm font-medium">Slug
+          <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="slug" value="${escapeAttr(opts.slug)}">
+        </label>
+        <label class="flex flex-col gap-1 text-sm font-medium">Tags
+          <input class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="tags" value="${escapeAttr(opts.tags)}">
+        </label>
+        <label class="flex flex-col gap-1 text-sm font-medium">Status
+          <select class="rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" name="status">
+            <option value="draft"${s === "draft" ? " selected" : ""}>Draft</option>
+            <option value="unlisted"${s === "unlisted" ? " selected" : ""}>Published — unlisted</option>
+            <option value="listed"${s === "listed" ? " selected" : ""}>Published — listed</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <label class="flex flex-col gap-1 text-sm font-medium">Source
+          <textarea id="editor-source" class="h-[70vh] rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source">${escapeHtml(opts.source)}</textarea>
+        </label>
+        <div class="flex flex-col gap-1 text-sm font-medium">Preview
+          <iframe id="editor-preview" class="h-[70vh] w-full rounded-md border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-950" name="preview"></iframe>
+          <p id="preview-status" hidden class="text-xs font-normal text-red-600 dark:text-red-400">Preview failed — retrying as you type.</p>
+        </div>
+      </div>
       <p class="flex gap-3">
-        <button class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
+        <button id="preview-button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
         <button class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" type="submit">Save</button>
       </p>
     </form>
-    <iframe class="mt-6 h-[300px] w-full rounded-md border border-gray-300 dark:border-gray-700" name="preview"></iframe>
+    <script type="module" src="/admin-editor.mjs"></script>
   `;
 }
 
@@ -118,6 +126,7 @@ adminRoutes.get("/new", (c) => {
       source: "",
     }),
     noindex: true,
+    wide: true,
   });
   return c.html(html);
 });
@@ -142,6 +151,7 @@ adminRoutes.get("/edit/:id", async (c) => {
       status: post.status,
     }),
     noindex: true,
+    wide: true,
   });
   return c.html(html);
 });
@@ -201,6 +211,7 @@ adminRoutes.post("/save", async (c) => {
         error: message,
       }),
       noindex: true,
+      wide: true,
     });
     return c.html(html);
   };
