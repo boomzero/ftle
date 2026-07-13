@@ -166,4 +166,55 @@ describe("admin editor pages", () => {
     expect(html).toContain('formtarget="preview"');
     expect(html).toContain('name="preview"');
   });
+
+  // The ? button opens a modal listing the editor's keyboard shortcuts.
+  // The modal markup is editor-only — it must not leak onto the post list.
+  function assertShortcutsHelp(html: string) {
+    // Help button: type="button" so clicking it never submits the editor form.
+    expect(html).toContain('id="shortcuts-button"');
+    const buttonTag = html.match(/<button[^>]*id="shortcuts-button"[^>]*>/)![0];
+    expect(buttonTag).toContain('type="button"');
+    // Modal is hidden by default and rendered outside the form.
+    expect(html).toContain('id="shortcuts-modal"');
+    expect(html.match(/<div[^>]*id="shortcuts-modal"[^>]*>/)![0]).toContain("hidden");
+    expect(html.indexOf('id="shortcuts-modal"')).toBeGreaterThan(html.indexOf("</form>"));
+    expect(html).toContain('id="shortcuts-close"');
+    // Title plus the six shortcuts, each in its own cell.
+    expect(html).toContain("Keyboard Shortcuts");
+    const combos = ["Ctrl/Cmd+B", "Ctrl/Cmd+I", "Ctrl/Cmd+K", "Ctrl/Cmd+S", "Tab", "Shift+Tab"];
+    const labels = ["Bold", "Italic", "Insert link", "Save", "Indent selected lines", "Dedent selected lines"];
+    for (const combo of combos) expect(html).toContain(`>${combo}</td>`);
+    for (const label of labels) expect(html).toContain(`>${label}</td>`);
+  }
+
+  it("GET /admin/new renders the keyboard-shortcuts help button and modal", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    const html = await res.text();
+    assertShortcutsHelp(html);
+  });
+
+  it("GET /admin/edit/:id renders the same keyboard-shortcuts help", async () => {
+    const post = await createPost(env.DB, {
+      slug: "shortcuts",
+      title: "Shortcuts",
+      source: "body",
+      rendered: "<p>body</p>",
+      hasMath: false,
+      tags: [],
+    });
+    const headers = await authedHeaders();
+    const res = await app.request(`/admin/edit/${post.id}`, { headers }, env);
+    const html = await res.text();
+    assertShortcutsHelp(html);
+  });
+
+  it("GET /admin (post list) does not render the shortcuts modal or button", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin", { headers }, env);
+    const html = await res.text();
+    expect(html).not.toContain('id="shortcuts-modal"');
+    expect(html).not.toContain('id="shortcuts-button"');
+    expect(html).not.toContain("Keyboard Shortcuts");
+  });
 });

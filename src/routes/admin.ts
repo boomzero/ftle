@@ -104,8 +104,25 @@ function editorForm(opts: {
       <p class="flex gap-3">
         <button id="preview-button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
         <button class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" type="submit">Save</button>
+        <button id="shortcuts-button" type="button" class="ml-auto rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
       </p>
     </form>
+    <div id="shortcuts-modal" hidden class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 dark:bg-black/70" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <div class="relative w-full max-w-md rounded-md border border-gray-300 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+        <button id="shortcuts-close" type="button" class="absolute right-3 top-3 rounded-md border border-gray-300 px-2 leading-none text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800" aria-label="Close shortcuts">×</button>
+        <h2 id="shortcuts-title" class="mb-4 text-xl font-bold tracking-tight">Keyboard Shortcuts</h2>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tr><td class="py-2 pr-4 font-mono">Ctrl/Cmd+B</td><td class="py-2">Bold</td></tr>
+            <tr><td class="py-2 pr-4 font-mono">Ctrl/Cmd+I</td><td class="py-2">Italic</td></tr>
+            <tr><td class="py-2 pr-4 font-mono">Ctrl/Cmd+K</td><td class="py-2">Insert link</td></tr>
+            <tr><td class="py-2 pr-4 font-mono">Ctrl/Cmd+S</td><td class="py-2">Save</td></tr>
+            <tr><td class="py-2 pr-4 font-mono">Tab</td><td class="py-2">Indent selected lines</td></tr>
+            <tr><td class="py-2 pr-4 font-mono">Shift+Tab</td><td class="py-2">Dedent selected lines</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
     <script type="module" src="/admin-editor.mjs"></script>
   `;
 }

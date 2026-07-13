@@ -182,6 +182,25 @@ function init() {
       apply(e.shiftKey ? dedentLines : indentLines);
     }
   });
+
+  // Keyboard-shortcuts help modal: ? button opens; ×, backdrop, Escape close.
+  // Toggling the `hidden` attribute (display:none !important in the base
+  // layer) reliably hides the flex backdrop — same trick as previewButton.
+  const shortcutsButton = document.getElementById("shortcuts-button");
+  const shortcutsModal = document.getElementById("shortcuts-modal");
+  const shortcutsClose = document.getElementById("shortcuts-close");
+  if (shortcutsButton && shortcutsModal) {
+    const close = () => { shortcutsModal.hidden = true; };
+    shortcutsButton.addEventListener("click", () => { shortcutsModal.hidden = false; });
+    if (shortcutsClose) shortcutsClose.addEventListener("click", close);
+    // Only a click on the backdrop itself (not the card bubbling up) closes.
+    shortcutsModal.addEventListener("click", (e) => {
+      if (e.target === shortcutsModal) close();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !shortcutsModal.hidden) close();
+    });
+  }
 }
 
 if (typeof document !== "undefined") {
