@@ -96,17 +96,21 @@ function editorForm(opts: {
       <div class="grid gap-4 lg:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm font-medium">Source
           <textarea id="editor-source" class="h-[70vh] rounded-md border border-gray-300 px-3 py-2 font-mono text-sm dark:border-gray-700 dark:bg-gray-900" name="source">${escapeHtml(opts.source)}</textarea>
+          <p id="upload-status" hidden class="text-xs font-normal text-red-600 dark:text-red-400"></p>
         </label>
         <div class="flex flex-col gap-1 text-sm font-medium">Preview
           <iframe id="editor-preview" class="h-[70vh] w-full rounded-md border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-950" name="preview"></iframe>
           <p id="preview-status" hidden class="text-xs font-normal text-red-600 dark:text-red-400">Preview failed — retrying as you type.</p>
         </div>
       </div>
-      <p class="flex gap-3">
+      <p class="flex items-center gap-3">
         <button id="preview-button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" type="submit" formaction="/admin/preview" formtarget="preview">Preview</button>
         <button class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" type="submit">Save</button>
+        <button id="image-upload-button" type="button" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900">Insert image</button>
+        <input id="image-file-input" type="file" accept="image/*" hidden>
         <button id="shortcuts-button" type="button" class="ml-auto rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
       </p>
+      <p class="text-xs text-gray-500 dark:text-gray-400">Images hosted via <a class="underline hover:text-indigo-600 dark:hover:text-indigo-400" href="https://github.com/langningchen/Image" target="_blank" rel="noopener">Image</a> by langningchen.</p>
     </form>
     <div id="shortcuts-modal" hidden class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 dark:bg-black/70" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
       <div class="relative w-full max-w-md rounded-md border border-gray-300 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">

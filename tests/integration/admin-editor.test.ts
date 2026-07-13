@@ -189,6 +189,37 @@ describe("admin editor pages", () => {
     expect(html).toContain('data-image-upload-url="https://image.langningchen.com"');
   });
 
+  it("GET /admin/new renders the image-upload button, file input, status line, and attribution", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/new", { headers }, env);
+    const html = await res.text();
+
+    expect(html).toContain('id="image-upload-button"');
+    const buttonTag = html.match(/<button[^>]*id="image-upload-button"[^>]*>/)![0];
+    expect(buttonTag).toContain('type="button"'); // must never submit the form
+
+    expect(html).toContain('id="image-file-input"');
+    const inputTag = html.match(/<input[^>]*id="image-file-input"[^>]*>/)![0];
+    expect(inputTag).toContain('type="file"');
+    expect(inputTag).toContain('accept="image/*"');
+    expect(inputTag).toContain("hidden");
+
+    expect(html).toContain('id="upload-status"');
+    expect(html.match(/<p[^>]*id="upload-status"[^>]*>/)![0]).toContain("hidden");
+
+    expect(html).toContain('href="https://github.com/langningchen/Image"');
+    expect(html).toContain(">Image</a> by langningchen.");
+  });
+
+  it("GET /admin (post list) does not render the image-upload controls", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin", { headers }, env);
+    const html = await res.text();
+    expect(html).not.toContain('id="image-upload-button"');
+    expect(html).not.toContain('id="image-file-input"');
+    expect(html).not.toContain('id="upload-status"');
+  });
+
   // The ? button opens a modal listing the editor's keyboard shortcuts.
   // The modal markup is editor-only — it must not leak onto the post list.
   function assertShortcutsHelp(html: string) {
