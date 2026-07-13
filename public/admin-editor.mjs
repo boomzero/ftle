@@ -75,3 +75,115 @@ export function dedentLines(state) {
     selectionEnd: Math.max(newStart, end - removedBeforeEnd),
   };
 }
+
+// ---------------------------------------------------------------------------
+// DOM wiring — browser only. Guarded so the module can be imported by tests
+// (vitest workers pool) and node without a document.
+// ---------------------------------------------------------------------------
+
+function replaceText(el, newText) {
+  // Replace only the changed slice, via execCommand where available, so the
+  // browser's undo history survives programmatic edits.
+  const old = el.value;
+  let start = 0;
+  while (start < old.length && start < newText.length && old[start] === newText[start]) start++;
+  let oldEnd = old.length;
+  let newEnd = newText.length;
+  while (oldEnd > start && newEnd > start && old[oldEnd - 1] === newText[newEnd - 1]) {
+    oldEnd--;
+    newEnd--;
+  }
+  if (start === oldEnd && start === newEnd) return;
+  const replacement = newText.slice(start, newEnd);
+  el.focus();
+  el.setSelectionRange(start, oldEnd);
+  let ok = false;
+  try {
+    ok = replacement
+      ? document.execCommand("insertText", false, replacement)
+      : document.execCommand("delete");
+  } catch {
+    ok = false;
+  }
+  if (!ok || el.value !== newText) el.setRangeText(replacement, start, oldEnd, "end");
+}
+
+function init() {
+  const form = document.getElementById("editor-form");
+  const source = document.getElementById("editor-source");
+  const preview = document.getElementById("editor-preview");
+  const status = document.getElementById("preview-status");
+  const previewButton = document.getElementById("preview-button");
+  if (!form || !source || !preview) return;
+
+  // Live preview supersedes the no-JS fallback button.
+  if (previewButton) previewButton.hidden = true;
+
+  let timer;
+  let controller = null;
+  async function renderPreview() {
+    if (controller) controller.abort();
+    controller = new AbortController();
+    try {
+      const res = await fetch("/admin/preview", {
+        method: "POST",
+        body: new URLSearchParams({ source: source.value }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      preview.srcdoc = await res.text();
+      if (status) status.hidden = true;
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      if (status) status.hidden = false;
+    }
+  }
+  function schedulePreview() {
+    clearTimeout(timer);
+    timer = setTimeout(renderPreview, 400);
+  }
+  source.addEventListener("input", schedulePreview);
+  renderPreview();
+
+  let dirty = false;
+  form.addEventListener("input", () => {
+    dirty = true;
+  });
+  form.addEventListener("submit", () => {
+    dirty = false;
+  });
+  window.addEventListener("beforeunload", (e) => {
+    if (dirty) e.preventDefault();
+  });
+
+  function apply(transform) {
+    const next = transform({
+      text: source.value,
+      selectionStart: source.selectionStart,
+      selectionEnd: source.selectionEnd,
+    });
+    replaceText(source, next.text);
+    source.setSelectionRange(next.selectionStart, next.selectionEnd);
+    dirty = true;
+    schedulePreview();
+  }
+
+  source.addEventListener("keydown", (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && !e.shiftKey && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === "b") { e.preventDefault(); apply((s) => wrapSelection(s, "**")); return; }
+      if (key === "i") { e.preventDefault(); apply((s) => wrapSelection(s, "*")); return; }
+      if (key === "k") { e.preventDefault(); apply(makeLink); return; }
+      if (key === "s") { e.preventDefault(); form.requestSubmit(); return; }
+    }
+    if (e.key === "Tab" && !mod && !e.altKey) {
+      e.preventDefault();
+      apply(e.shiftKey ? dedentLines : indentLines);
+    }
+  });
+}
+
+if (typeof document !== "undefined") {
+  init();
+}
