@@ -42,6 +42,7 @@ describe("performance budget", () => {
     const html = await res.text();
 
     const gzipped = gzipSync(Buffer.from(html, "utf8"));
+    console.log("POST_PAGE_GZIP_BYTES=", gzipped.byteLength);
     expect(gzipped.byteLength).toBeLessThanOrEqual(14 * 1024);
 
     // No executable JavaScript — JSON-LD <script type="application/ld+json"> is data, not JS
