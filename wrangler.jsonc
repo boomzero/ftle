@@ -13,7 +13,7 @@
     "SITE_DESCRIPTION": "A blog running on ftle",
     "SITE_AUTHOR": "Anonymous",
     "SITE_NAV_LINKS": "",
-    "IMAGE_UPLOAD_URL": "https://example.com",
+    "IMAGE_UPLOAD_URL": "https://image.langningchen.com",
     "ACCESS_TEAM_DOMAIN": "https://your-team.cloudflareaccess.com",
     "ACCESS_AUD": "replace-with-your-access-application-aud-tag",
   },
