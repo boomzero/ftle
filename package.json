@@ -22,7 +22,7 @@
     "marked": "^14.1.0"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.18.2",
+    "@cloudflare/vitest-pool-workers": "^0.18.8",
     "@tailwindcss/cli": "^4.3.2",
     "@tailwindcss/typography": "^0.5.20",
     "@types/node": "^22.10.0",
