@@ -10,7 +10,14 @@ export const publicRoutes = new Hono<{ Bindings: Env }>();
 
 function postListItem(post: PostWithTags): string {
   const date = post.created_at.slice(0, 10);
-  return `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(post.slug)}">${escapeHtml(post.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">${date}</span></li>`;
+  const tagLinks = post.tags
+    .map(
+      (t) =>
+        `<a class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-indigo-950 dark:hover:text-indigo-300" href="/tag/${encodeURIComponent(t)}">${escapeHtml(t)}</a>`,
+    )
+    .join("");
+  const tagsHtml = tagLinks ? `<span class="flex flex-wrap justify-end gap-1">${tagLinks}</span>` : "";
+  return `<li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(post.slug)}">${escapeHtml(post.title)}</a><span class="flex shrink-0 flex-wrap items-baseline justify-end gap-x-5 gap-y-1">${tagsHtml}<span class="text-sm text-gray-500 dark:text-gray-400">${date}</span></span></li>`;
 }
 
 publicRoutes.get("/", async (c) => {
