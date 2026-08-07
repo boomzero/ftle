@@ -11,3 +11,86 @@
     color-scheme: light dark;
   }
 }
+
+@layer components {
+  details.spoiler {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-md);
+  }
+
+  details.spoiler > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-indigo-100);
+    color: var(--color-indigo-700);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--text-sm--line-height);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  details.spoiler[open] > summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  details.spoiler > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.spoiler > summary::marker {
+    content: "";
+  }
+
+  details.spoiler > summary::after {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentcolor;
+    border-bottom: 2px solid currentcolor;
+    transform: rotate(-135deg);
+    transform-origin: center;
+    margin-top: 0.25rem;
+    transition: transform 0.2s var(--default-transition-timing-function, ease);
+  }
+
+  details.spoiler:not([open]) > summary::after {
+    transform: rotate(45deg);
+    margin-top: -0.25rem;
+  }
+
+  details.spoiler > .spoiler-body {
+    padding: 1rem;
+    border-top: 1px solid var(--color-gray-300);
+    color: var(--color-gray-700);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    details.spoiler {
+      border-color: var(--color-gray-700);
+    }
+
+    details.spoiler > summary {
+      background-color: var(--color-indigo-950);
+      color: var(--color-indigo-300);
+    }
+
+    details.spoiler > .spoiler-body {
+      border-top-color: var(--color-gray-700);
+      color: var(--color-gray-300);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    details.spoiler > summary::after {
+      transition: none;
+    }
+  }
+}
