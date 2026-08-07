@@ -9,6 +9,16 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM posts").run();
 });
 
+describe("GET /admin", () => {
+  it("renders a button that posts to /admin/rerender", async () => {
+    const headers = await authedHeaders();
+    const res = await app.request("/admin", { headers }, env);
+    const html = await res.text();
+    expect(html).toMatch(/<form[^>]*method="post"[^>]*action="\/admin\/rerender"/);
+    expect(html).toContain("Rerender all posts");
+  });
+});
+
 describe("POST /admin/rerender", () => {
   it("re-renders every post from its stored source", async () => {
     await createPost(env.DB, {

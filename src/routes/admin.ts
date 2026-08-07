@@ -52,7 +52,7 @@ adminRoutes.get("/", async (c) => {
     pageTitle: "Admin",
     description: "Admin post list.",
     canonicalUrl: `${c.env.SITE_URL}/admin`,
-    bodyHtml: `<h1 class="mb-6 text-3xl font-bold tracking-tight">Posts</h1><p class="mb-6"><a class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" href="/admin/new">New post</a></p><ul class="divide-y divide-gray-200 dark:divide-gray-800">${rows}</ul>`,
+    bodyHtml: `<h1 class="mb-6 text-3xl font-bold tracking-tight">Posts</h1><div class="mb-6 flex items-center gap-3"><a class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" href="/admin/new">New post</a><form method="post" action="/admin/rerender"><button type="submit" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800">Rerender all posts</button></form></div><ul class="divide-y divide-gray-200 dark:divide-gray-800">${rows}</ul>`,
     noindex: true,
   });
   return c.html(html);

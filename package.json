@@ -16,6 +16,7 @@
     "migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
+    "highlight.js": "^11.11.1",
     "hono": "^4.13.1",
     "jose": "^5.9.0",
     "katex": "^0.16.11",
