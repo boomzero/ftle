@@ -24,12 +24,12 @@ adminRoutes.use("*", async (c, next) => {
   await next();
 });
 
-function statusBadge(s: PostStatus): string {
-  const color =
-    s === "listed"  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-    : s === "unlisted" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-    : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
-  return `<span class="rounded px-2 py-0.5 text-xs font-medium ${color}">${s}</span>`;
+function statusSelectClasses(s: PostStatus): string {
+  return (
+    s === "listed" ? "border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
+    : s === "unlisted" ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+    : "border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+  );
 }
 
 adminRoutes.get("/", async (c) => {
@@ -37,12 +37,11 @@ adminRoutes.get("/", async (c) => {
   const rows = posts
     .map(
       (p) => {
-        const badge = statusBadge(p.status);
         const viewLink =
           p.status !== "draft"
-            ? ` — <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="/${encodeURIComponent(p.slug)}">view</a>`
+            ? `<a class="rounded-md border border-sky-300 px-2.5 py-1 text-sky-700 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-300 dark:hover:bg-sky-950" href="/${encodeURIComponent(p.slug)}">View</a>`
             : "";
-        return `<li class="flex items-baseline justify-between gap-4 py-3"><a class="font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}">${escapeHtml(p.title)}</a><span class="shrink-0 text-sm text-gray-500 dark:text-gray-400">${badge} <form method="post" action="/admin/set-status/${p.id}" class="inline"><select name="status" class="text-xs rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-900" onchange="this.form.submit()"><option value="draft"${p.status === "draft" ? " selected" : ""}>Draft</option><option value="unlisted"${p.status === "unlisted" ? " selected" : ""}>Unlisted</option><option value="listed"${p.status === "listed" ? " selected" : ""}>Listed</option></select></form> (${escapeHtml(p.slug)})${viewLink} — <form method="post" action="/admin/delete/${p.id}" class="inline" onsubmit="return confirm('Delete this post? This cannot be undone.')"><button type="submit" class="text-red-600 hover:underline dark:text-red-400">delete</button></form></span></li>`;
+        return `<tr class="border-b border-gray-200 last:border-0 dark:border-gray-800"><td class="max-w-0 py-3 pr-6"><a class="block truncate font-medium hover:text-indigo-600 dark:hover:text-indigo-400" href="/admin/edit/${p.id}" title="${escapeAttr(p.title)}">${escapeHtml(p.title)}</a></td><td class="whitespace-nowrap py-3 pr-6"><form method="post" action="/admin/set-status/${p.id}" class="inline"><select name="status" class="rounded-md border px-2 py-1 text-xs font-medium ${statusSelectClasses(p.status)}" onchange="this.form.submit()"><option value="draft"${p.status === "draft" ? " selected" : ""}>Draft</option><option value="unlisted"${p.status === "unlisted" ? " selected" : ""}>Unlisted</option><option value="listed"${p.status === "listed" ? " selected" : ""}>Listed</option></select></form></td><td class="max-w-0 py-3 pr-6 font-mono text-xs text-gray-500 dark:text-gray-400"><span class="block truncate" title="${escapeAttr(p.slug)}">${escapeHtml(p.slug)}</span></td><td class="py-3 text-right"><div class="flex items-center justify-end gap-2 text-sm">${viewLink}<a class="rounded-md border border-indigo-300 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950" href="/admin/edit/${p.id}">Edit</a><form method="post" action="/admin/delete/${p.id}" class="inline" onsubmit="return confirm('Delete this post? This cannot be undone.')"><button type="submit" class="rounded-md border border-red-300 px-2.5 py-1 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950">Delete</button></form></div></td></tr>`;
       },
     )
     .join("");
@@ -52,7 +51,7 @@ adminRoutes.get("/", async (c) => {
     pageTitle: "Admin",
     description: "Admin post list.",
     canonicalUrl: `${c.env.SITE_URL}/admin`,
-    bodyHtml: `<h1 class="mb-6 text-3xl font-bold tracking-tight">Posts</h1><div class="mb-6 flex items-center gap-3"><a class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" href="/admin/new">New post</a><form method="post" action="/admin/rerender"><button type="submit" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800">Rerender all posts</button></form></div><ul class="divide-y divide-gray-200 dark:divide-gray-800">${rows}</ul>`,
+    bodyHtml: `<h1 class="mb-6 text-3xl font-bold tracking-tight">Posts</h1><div class="mb-6 flex items-center gap-3"><a class="inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" href="/admin/new">New post</a><form method="post" action="/admin/rerender"><button type="submit" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800">Rerender all posts</button></form></div><div class="overflow-x-auto"><table class="w-full table-fixed text-left text-sm"><colgroup><col class="w-[42%]"><col class="w-[15%]"><col class="w-[20%]"><col class="w-[23%]"></colgroup><thead><tr class="border-b border-gray-300 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400"><th class="py-2 pr-6">Title</th><th class="py-2 pr-6">Status</th><th class="py-2 pr-6">Slug</th><th class="py-2 text-right">Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`,
     noindex: true,
   });
   return c.html(html);
