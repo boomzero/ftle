@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { env } from "cloudflare:test";
 import app from "../../src/index";
 import { createPost, getPostBySlug } from "../../src/db/posts";
@@ -58,6 +58,30 @@ describe("POST /admin/rerender", () => {
     const post = await getPostBySlug(env.DB, "a");
     expect(post?.rendered).toContain("<h1>A</h1>");
     expect(post?.updated_at).toBe("2020-01-01T00:00:00.000Z");
+  });
+
+  it("reports failure instead of a 500 when the DB write itself fails", async () => {
+    await createPost(env.DB, {
+      slug: "a",
+      title: "A",
+      source: "# A",
+      rendered: "<h1>stale</h1>",
+      hasMath: false,
+      tags: [],
+    });
+
+    const batchSpy = vi.spyOn(env.DB, "batch").mockRejectedValueOnce(new Error("boom"));
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/rerender", { method: "POST", headers }, env);
+    batchSpy.mockRestore();
+
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html.toLowerCase()).toContain("boom");
+
+    // The write never committed, so the stale content is still there.
+    const post = await getPostBySlug(env.DB, "a");
+    expect(post?.rendered).toBe("<h1>stale</h1>");
   });
 
   it("re-renders the other posts even when one post's source now fails to render", async () => {

@@ -301,16 +301,22 @@ adminRoutes.post("/save", async (c) => {
   return c.redirect(`/admin/edit/${saved.id}`, 303);
 });
 
+// D1's batch() has no documented cap on statement count, but each rendered
+// post is a full HTML blob (D1 caps a single row/string at 2MB) and batches
+// are sent as one request, so writes are chunked to keep each batch's total
+// payload bounded rather than growing linearly with the post count.
+const RERENDER_BATCH_SIZE = 25;
+
 adminRoutes.post("/rerender", async (c) => {
   const posts = await listPosts(c.env.DB);
   const allTags = new Set<string>();
   const failures: { slug: string; message: string }[] = [];
-  const updates: { id: number; rendered: string; hasMath: boolean }[] = [];
+  const updates: { id: number; slug: string; rendered: string; hasMath: boolean }[] = [];
 
   for (const post of posts) {
     try {
       const { rendered, hasMath } = renderPost(post.source);
-      updates.push({ id: post.id, rendered, hasMath });
+      updates.push({ id: post.id, slug: post.slug, rendered, hasMath });
       post.tags.forEach((t) => allTags.add(t));
     } catch (e) {
       // A renderer regression in one post (the exact scenario this endpoint
@@ -322,7 +328,19 @@ adminRoutes.post("/rerender", async (c) => {
     }
   }
 
-  await updateRendered(c.env.DB, updates);
+  for (let i = 0; i < updates.length; i += RERENDER_BATCH_SIZE) {
+    const chunk = updates.slice(i, i + RERENDER_BATCH_SIZE);
+    try {
+      await updateRendered(c.env.DB, chunk);
+    } catch (e) {
+      // Mirrors the render-failure handling above: a DB-level failure on one
+      // chunk (D1 batches run as a transaction, so a chunk fails together)
+      // must not abort the report or the remaining chunks.
+      const message = e instanceof Error ? e.message : String(e);
+      console.error(`rerender DB write failed for a batch of ${chunk.length} posts:`, message);
+      chunk.forEach((u) => failures.push({ slug: u.slug, message }));
+    }
+  }
 
   const paths = new Set<string>(["/", "/rss.xml", "/sitemap.xml"]);
   posts.forEach((p) => paths.add(`/${encodeURIComponent(p.slug)}`));
