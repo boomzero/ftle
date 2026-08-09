@@ -70,7 +70,7 @@ ${rssUrl ? `<link rel="alternate" type="application/atom+xml" href="${escapeAttr
 <a class="text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400" href="/rss.xml">RSS</a>
 ${navLinksHtml}</nav>
 ${bodyHtml}
-<footer class="mt-16 text-sm text-gray-500 dark:text-gray-400">${safeSiteTitle}</footer>
+<footer class="mt-16 text-sm text-gray-500 dark:text-gray-400">${safeSiteTitle} · powered by <a class="hover:text-indigo-600 dark:hover:text-indigo-400" href="https://github.com/boomzero/ftle">ftle</a></footer>
 </body>
 </html>`;
 }
