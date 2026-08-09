@@ -7,5 +7,6 @@ public/fonts/
 src/generated/
 .dev.vars
 .DS_Store
+coverage/
 docs/superpowers/
 .superpowers/

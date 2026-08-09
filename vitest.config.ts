@@ -23,6 +23,11 @@ export default defineConfig(async () => {
     ],
     test: {
       setupFiles: ["./tests/apply-migrations.ts"],
+      coverage: {
+        provider: "istanbul",
+        reporter: ["text", "html"],
+        include: ["src/**"],
+      },
     },
   };
 });
