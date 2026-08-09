@@ -39,6 +39,22 @@ export class DuplicateSlugError extends Error {
   }
 }
 
+// Top-level static routes (see src/index.ts) that a single-segment post slug
+// would otherwise collide with and be permanently unreachable behind.
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  "admin",
+  "rss.xml",
+  "sitemap.xml",
+  "robots.txt",
+]);
+
+export class ReservedSlugError extends Error {
+  constructor(slug: string) {
+    super(`Slug is reserved: ${slug}`);
+    this.name = "ReservedSlugError";
+  }
+}
+
 async function attachTags(db: D1Database, posts: Post[]): Promise<PostWithTags[]> {
   if (posts.length === 0) return [];
   const ids = posts.map((p) => p.id);
@@ -58,6 +74,7 @@ async function attachTags(db: D1Database, posts: Post[]): Promise<PostWithTags[]
 }
 
 export async function createPost(db: D1Database, input: PostInput): Promise<PostWithTags> {
+  if (RESERVED_SLUGS.has(input.slug)) throw new ReservedSlugError(input.slug);
   if (await isSlugTaken(db, input.slug)) throw new DuplicateSlugError(input.slug);
 
   const now = new Date().toISOString();
@@ -98,6 +115,7 @@ export async function updatePost(
   id: number,
   input: PostInput,
 ): Promise<PostWithTags> {
+  if (RESERVED_SLUGS.has(input.slug)) throw new ReservedSlugError(input.slug);
   if (await isSlugTaken(db, input.slug, id)) throw new DuplicateSlugError(input.slug);
 
   const now = new Date().toISOString();

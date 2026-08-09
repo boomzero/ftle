@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
-import { listPosts, getPostById, createPost, updatePost, updateRendered, deletePost, DuplicateSlugError, validateStatus, type PostStatus } from "../db/posts";
+import { listPosts, getPostById, createPost, updatePost, updateRendered, deletePost, DuplicateSlugError, ReservedSlugError, validateStatus, type PostStatus } from "../db/posts";
 import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
@@ -273,6 +273,9 @@ adminRoutes.post("/save", async (c) => {
   } catch (e) {
     if (e instanceof DuplicateSlugError) {
       return renderError(`That slug is already taken: ${slug}`);
+    }
+    if (e instanceof ReservedSlugError) {
+      return renderError(`That slug is reserved and can't be used: ${slug}`);
     }
     // Any other save-path failure (e.g. the post behind `id` was deleted in
     // another tab between page load and submit) must still return the editor

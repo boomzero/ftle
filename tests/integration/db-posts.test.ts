@@ -10,6 +10,7 @@ import {
   listPostsByTag,
   isSlugTaken,
   DuplicateSlugError,
+  ReservedSlugError,
 } from "../../src/db/posts";
 
 const baseInput = {
@@ -41,6 +42,17 @@ describe("posts data layer", () => {
   it("rejects duplicate slugs", async () => {
     await createPost(env.DB, baseInput);
     await expect(createPost(env.DB, baseInput)).rejects.toThrow(DuplicateSlugError);
+  });
+
+  it("rejects reserved slugs on create, e.g. 'admin' which would shadow /admin", async () => {
+    await expect(createPost(env.DB, { ...baseInput, slug: "admin" })).rejects.toThrow(ReservedSlugError);
+  });
+
+  it("rejects reserved slugs on update", async () => {
+    const created = await createPost(env.DB, baseInput);
+    await expect(
+      updatePost(env.DB, created.id, { ...baseInput, slug: "rss.xml", status: "listed" }),
+    ).rejects.toThrow(ReservedSlugError);
   });
 
   it("updates a post and its tags, changing updated_at", async () => {

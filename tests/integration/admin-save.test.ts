@@ -51,6 +51,19 @@ describe("POST /admin/save", () => {
     expect(html).toContain("my draft text");
   });
 
+  it("rejects a reserved slug like 'admin', which would otherwise be unreachable behind /admin", async () => {
+    const headers = { ...(await authedHeaders()), "Content-Type": "application/x-www-form-urlencoded" };
+    const res = await app.request(
+      "/admin/save",
+      { method: "POST", headers, body: formBody({ title: "New", slug: "admin", tags: "", source: "my draft text" }) },
+      env,
+    );
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html.toLowerCase()).toContain("reserved");
+    expect(html).toContain("my draft text");
+  });
+
   it("rejects invalid latex, preserving the submitted source", async () => {
     const headers = { ...(await authedHeaders()), "Content-Type": "application/x-www-form-urlencoded" };
     const res = await app.request(
