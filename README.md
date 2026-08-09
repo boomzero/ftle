@@ -9,7 +9,7 @@ Most self-hosted blog engines (WordPress and friends) trade you a web-based edit
 
 - **Free to run.** Fits comfortably in Cloudflare's free Workers + D1 tier. Edge cache hits skip the Worker and the database entirely — no CPU time billed, no D1 read — so only a cache miss (a new post, or the first reader after a purge) touches either. Saving a post purges just the affected cache tags, so edits still show up immediately; there's no stale-cache tradeoff. (Cache hits still count toward the Free plan's 100,000 requests/day quota — this isn't literally unlimited traffic, just cheap traffic.)
 - **Fast.** Reader-facing pages ship **0 bytes of JavaScript** and **≤ 14KB compressed HTML**, served from Cloudflare's edge cache. A regression test enforces this budget on every commit — see [Performance budget](#performance-budget).
-- **Small attack surface.** No PHP, no plugin ecosystem, no database credentials to leak. The admin panel is gated by [Cloudflare Access](#cloudflare-access-setup-admin-auth) — Cloudflare verifies your identity before a request ever reaches the Worker.
+- **Small attack surface.** No PHP, no plugin ecosystem, no database credentials to leak. The admin panel is gated by [Cloudflare Access](#3-configure-cloudflare-access) — Cloudflare verifies your identity before a request ever reaches the Worker.
 - **Edit from anywhere.** A web-based Markdown editor with live LaTeX math preview — no local tooling, no build step, no static-site regeneration.
 
 ## Features
@@ -24,23 +24,56 @@ Most self-hosted blog engines (WordPress and friends) trade you a web-based edit
 
 ## Quickstart
 
-### Option A: Deploy to Cloudflare button
+Setup is a loop, not a straight line: `/admin*` is gated by [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/), and Access needs a real hostname to attach a policy to — one that only exists once the Worker is deployed and a domain is pointed at it. So `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` can't be filled in up front; they start as placeholders, and you come back and set the real values once Access exists. Four steps:
+
+### 1. Deploy the Worker
+
+**Option A: Deploy to Cloudflare button**
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/boomzero/ftle)
 
 This clones the repo into your own GitHub account, provisions a D1 database, and deploys the Worker in a few clicks. The `deploy` script (`package.json`) runs `wrangler d1 migrations apply DB --remote` before `wrangler deploy`, so the database schema is applied automatically as part of that same build — nothing extra to run.
 
-One manual step remains before your site is safe to use: **set up Cloudflare Access.** The button can't create a Zero Trust application on your behalf — until you complete [Cloudflare Access setup](#cloudflare-access-setup-admin-auth), `/admin` is either unprotected or (if `ACCESS_AUD`/`ACCESS_TEAM_DOMAIN` are left as placeholders) simply broken. Do this before you publish anything you care about.
+The wizard's "Create and deploy" step prompts for `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` alongside the other `vars`. Leave them as their pre-filled placeholders (`https://your-team.cloudflareaccess.com` and `replace-with-your-access-application-aud-tag`) — you don't have real values yet, and won't until step 3. `/admin` stays unprotected (or outright broken, if the placeholders don't parse as valid config) until you finish step 4.
 
-### Option B: Manual setup
+**Option B: Manual setup**
 
 1. `npm install`
 2. Create the D1 database: `npx wrangler d1 create ftle` — copy the returned `database_id` into `wrangler.jsonc`'s `d1_databases[0].database_id`.
 3. Apply migrations locally: `npm run migrate:local`
-4. Set the Worker vars in `wrangler.jsonc` (`vars`) — see [Configuration](#configuration) below.
+4. Set the non-Access Worker vars in `wrangler.jsonc` (`vars`) — see [Configuration](#configuration) below. Leave `ACCESS_TEAM_DOMAIN`/`ACCESS_AUD` as placeholders for now.
 5. Generate types: `npx wrangler types`
 6. Generate the self-hosted KaTeX assets: `npm run prepare:katex`
-7. `npm run dev` to try it locally, then see [Deploying](#deploying) when you're ready to go live.
+7. `npm run dev` to try it locally, then `npm run deploy` when you're ready to go live (requires Wrangler ≥ 4.69.0).
+
+### 2. Attach your domain
+
+In the Cloudflare dashboard, go to **Workers & Pages → your Worker → Settings → Domains & Routes → Add → Custom Domain**, and enter the domain you want the blog to live on. This requires the domain to already be an active zone on your Cloudflare account (add it first via **Websites → Add a domain** if it isn't yet). This step is also what gives Access a real hostname to attach a policy to — which is why it has to happen before step 3.
+
+### 3. Configure Cloudflare Access
+
+`/admin*` isn't protected by a username/password login — it's protected by Cloudflare Access, which sits in front of the Worker and only lets a request through after Cloudflare itself has verified your identity. The Worker additionally verifies the `Cf-Access-Jwt-Assertion` JWT in-process via [`jose`](https://github.com/panva/jose) against Access's public keys (`src/auth/access.ts`) as defense in depth, but Access is the actual gate.
+
+1. **Create the application.** In the Cloudflare dashboard, go to **Zero Trust → Access controls → Applications → Add an application → Self-hosted**. This is a self-hosted, DNS-routed app (not a "Private" app requiring the WARP client) — visitors reach it through normal HTTPS. Under **Add public hostname**, pick the domain you attached in step 2 and set the path to `/admin*` so the policy covers the whole admin panel.
+2. **Add an Allow policy restricted to your email.** On the same screen, add a policy with **Action: Allow** and an **Include** rule of type **Emails**, with your email address as the value. Use the exact-match **Emails** selector, not **Emails ending in** a domain — the latter would let anyone with an email at that domain request a login code.
+3. **Leave One-Time PIN as the login method** (it's on by default) unless you already have an identity provider configured — no extra signup service is required for a single-author blog.
+4. **Save the application**, then find its **AUD tag**: back in **Access controls → Applications**, select your app, open **Configure**, and copy the **Application Audience (AUD) Tag** from the Overview/Additional settings panel.
+5. **Find your team domain**: **Zero Trust → Settings → Custom Pages** (or **General**) shows your **Team name and domain**, in the form `https://<your-team>.cloudflareaccess.com`.
+
+You now have real values for both blanks.
+
+### 4. Fill in the blanks
+
+Paste the AUD tag and team domain from step 3 into `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN` **in `wrangler.jsonc`**, then get that change deployed:
+
+- **Deployed via the button?** You have a real GitHub repo (that's what the button created) — edit `wrangler.jsonc` there, either locally or straight in GitHub's web editor, and commit to your production branch. Workers Builds redeploys automatically on push.
+- **Deployed manually?** Edit `wrangler.jsonc`, then run `npx wrangler deploy` (or `npm run deploy`).
+
+Don't take the shortcut of setting these two as plaintext vars in **Settings → Variables and Secrets** instead of editing the file. It looks like it works — the change applies immediately — but Wrangler resets a Worker's vars to exactly what's in `wrangler.jsonc` on every deploy. Since the file still has the placeholders, the *next* deploy (a future ftle update, a dependency bump, anything that triggers Workers Builds or a manual `wrangler deploy`) silently reverts `ACCESS_AUD`/`ACCESS_TEAM_DOMAIN` and breaks `/admin` again, with no obvious cause. Keep `wrangler.jsonc` as the source of truth for these two values, not the dashboard.
+
+Visiting `/admin` should now redirect you through a Cloudflare-hosted login page before the Worker ever sees the request.
+
+No other secrets are required — there's no client secret, API token, or session cookie for the Worker to manage.
 
 ## Configuration
 
@@ -64,22 +97,6 @@ The admin editor can upload images straight from the browser — via an "Insert 
 The default, `https://image.langningchen.com`, is a hosted instance of [langningchen/Image](https://github.com/langningchen/Image) (GPL-3.0) — a small Cloudflare Worker that stores uploaded images in a private GitHub repo and serves them back over HTTP. ftle uses it purely as a hosted HTTP API (no code from that project is vendored into this repo); many thanks to its author for letting ftle's editor use it, credited next to the upload button in the admin UI.
 
 Uploaded images live on that external host indefinitely — deleting a post, or removing an image reference from its source, does not delete the image from the host. If you'd rather not depend on someone else's instance, point `IMAGE_UPLOAD_URL` at your own deployment of [langningchen/Image](https://github.com/langningchen/Image) (or a compatible host exposing the same `POST /upload` / `GET /:id` API).
-
-## Cloudflare Access setup (admin auth)
-
-`/admin*` isn't protected by a username/password login — it's protected by [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/), which sits in front of the Worker and only lets a request through after Cloudflare itself has verified your identity. The Worker additionally verifies the `Cf-Access-Jwt-Assertion` JWT in-process via [`jose`](https://github.com/panva/jose) against Access's public keys (`src/auth/access.ts`) as defense in depth, but Access is the actual gate.
-
-1. **Attach your domain to the Worker first.** Your domain needs to already be on Cloudflare (proxied) before it'll show up as an option below — see step 2 of [Deploying](#deploying). Access sits in front of the existing route; it doesn't create one.
-2. **Create the application.** In the Cloudflare dashboard, go to **Zero Trust → Access controls → Applications → Add an application → Self-hosted**. This is a self-hosted, DNS-routed app (not a "Private" app requiring the WARP client) — visitors reach it through normal HTTPS. Under **Add public hostname**, pick your domain and set the path to `/admin*` so the policy covers the whole admin panel.
-3. **Add an Allow policy restricted to your email.** On the same screen, add a policy with **Action: Allow** and an **Include** rule of type **Emails**, with your email address as the value. Use the exact-match **Emails** selector, not **Emails ending in** a domain — the latter would let anyone with an email at that domain request a login code.
-4. **Leave One-Time PIN as the login method** (it's on by default) unless you already have an identity provider configured — no extra signup service is required for a single-author blog.
-5. **Save the application**, then find its **AUD tag**: back in **Access controls → Applications**, select your app, open **Configure**, and copy the **Application Audience (AUD) Tag** from the Overview/Additional settings panel. Paste it into `wrangler.jsonc`'s `ACCESS_AUD`.
-6. **Find your team domain**: **Zero Trust → Settings → Custom Pages** (or **General**) shows your **Team name and domain**, in the form `https://<your-team>.cloudflareaccess.com`. Paste it into `ACCESS_TEAM_DOMAIN`.
-
-   If you deployed via the button and don't have `wrangler` set up locally, you don't need to edit `wrangler.jsonc` at all — set both values as plaintext environment variables instead, in **Workers & Pages → your Worker → Settings → Variables and Secrets**.
-7. Redeploy (or just apply the new vars with `npx wrangler deploy`). Visiting `/admin` should now redirect you through a Cloudflare-hosted login page before the Worker ever sees the request. If you set the vars via the dashboard instead, saving them there applies immediately — no separate deploy step needed.
-
-No other secrets are required — there's no client secret, API token, or session cookie for the Worker to manage.
 
 ## Architecture
 
@@ -116,12 +133,9 @@ npm run migrate:remote  # apply D1 migrations to the deployed DB
 npm run deploy           # apply pending remote migrations, then wrangler deploy
 ```
 
-## Deploying
+## Redeploying
 
-1. `npm run deploy` — applies any pending remote D1 migrations, then deploys the Worker.
-2. In the Cloudflare dashboard, attach your domain to the Worker and confirm the Access application from [setup](#cloudflare-access-setup-admin-auth) covers `/admin*` on that domain.
-
-Deploying requires Wrangler ≥ 4.69.0. No cache-purge secrets are needed — this project uses Cloudflare's native Workers Caching (`"cache": { "enabled": true }` in `wrangler.jsonc`), with `ctx.cache.purge()` called in-process on save/delete/rerender via cache-tag-based invalidation.
+Once you've done the [Quickstart](#quickstart) once, later deploys are just `npm run deploy` — applies any pending remote D1 migrations, then deploys the Worker (requires Wrangler ≥ 4.69.0). No cache-purge secrets are needed — this project uses Cloudflare's native Workers Caching (`"cache": { "enabled": true }` in `wrangler.jsonc`), with `ctx.cache.purge()` called in-process on save/delete/rerender via cache-tag-based invalidation.
 
 ## Known limitations
 
