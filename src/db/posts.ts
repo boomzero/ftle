@@ -127,6 +127,24 @@ export async function updatePost(
   return updated;
 }
 
+/** Updates only the rendered HTML and has_math flag for a batch of posts,
+ *  leaving updated_at untouched. Used by the rerender endpoint, where the
+ *  content itself hasn't changed -- only its cached HTML output has -- so
+ *  bumping updated_at would falsely signal a content change to feed/sitemap
+ *  consumers. */
+export async function updateRendered(
+  db: D1Database,
+  updates: { id: number; rendered: string; hasMath: boolean }[],
+): Promise<void> {
+  if (updates.length === 0) return;
+  const stmts = updates.map(({ id, rendered, hasMath }) =>
+    db
+      .prepare(`UPDATE posts SET rendered = ?, has_math = ? WHERE id = ?`)
+      .bind(rendered, hasMath ? 1 : 0, id),
+  );
+  await db.batch(stmts);
+}
+
 export async function deletePost(db: D1Database, id: number): Promise<void> {
   await db.prepare(`DELETE FROM posts WHERE id = ?`).bind(id).run();
 }

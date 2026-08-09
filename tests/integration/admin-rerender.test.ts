@@ -37,6 +37,29 @@ describe("POST /admin/rerender", () => {
     expect(post?.rendered).toContain("<h1>A</h1>");
   });
 
+  it("leaves updated_at untouched (rerender is not a content change)", async () => {
+    const created = await createPost(env.DB, {
+      slug: "a",
+      title: "A",
+      source: "# A",
+      rendered: "<h1>stale</h1>",
+      hasMath: false,
+      tags: [],
+    });
+    await env.DB
+      .prepare("UPDATE posts SET updated_at = ? WHERE id = ?")
+      .bind("2020-01-01T00:00:00.000Z", created.id)
+      .run();
+
+    const headers = await authedHeaders();
+    const res = await app.request("/admin/rerender", { method: "POST", headers }, env);
+    expect(res.status).toBe(303);
+
+    const post = await getPostBySlug(env.DB, "a");
+    expect(post?.rendered).toContain("<h1>A</h1>");
+    expect(post?.updated_at).toBe("2020-01-01T00:00:00.000Z");
+  });
+
   it("re-renders the other posts even when one post's source now fails to render", async () => {
     await createPost(env.DB, {
       slug: "good",

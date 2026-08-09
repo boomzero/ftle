@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { verifyAccessRequest } from "../auth/access";
-import { listPosts, getPostById, createPost, updatePost, deletePost, DuplicateSlugError, validateStatus, type PostStatus } from "../db/posts";
+import { listPosts, getPostById, createPost, updatePost, updateRendered, deletePost, DuplicateSlugError, validateStatus, type PostStatus } from "../db/posts";
 import { computePurgePaths, purgePaths } from "../cache/purge";
 import { renderLayout } from "../layout";
 import { renderPost } from "../render/pipeline";
@@ -305,19 +305,12 @@ adminRoutes.post("/rerender", async (c) => {
   const posts = await listPosts(c.env.DB);
   const allTags = new Set<string>();
   const failures: { slug: string; message: string }[] = [];
+  const updates: { id: number; rendered: string; hasMath: boolean }[] = [];
 
   for (const post of posts) {
     try {
       const { rendered, hasMath } = renderPost(post.source);
-      await updatePost(c.env.DB, post.id, {
-        slug: post.slug,
-        title: post.title,
-        source: post.source,
-        rendered,
-        hasMath,
-        tags: post.tags,
-        status: post.status,
-      });
+      updates.push({ id: post.id, rendered, hasMath });
       post.tags.forEach((t) => allTags.add(t));
     } catch (e) {
       // A renderer regression in one post (the exact scenario this endpoint
@@ -328,6 +321,8 @@ adminRoutes.post("/rerender", async (c) => {
       console.error(`rerender failed for post "${post.slug}":`, message);
     }
   }
+
+  await updateRendered(c.env.DB, updates);
 
   const paths = new Set<string>(["/", "/rss.xml", "/sitemap.xml"]);
   posts.forEach((p) => paths.add(`/${encodeURIComponent(p.slug)}`));
