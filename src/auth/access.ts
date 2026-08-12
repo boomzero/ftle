@@ -23,6 +23,10 @@ export async function verifyAccessRequest(
   request: Request,
   env: Env,
 ): Promise<AccessIdentity | null> {
+  // jose's audience check is skipped entirely when `audience` is falsy, so an
+  // unset/blank ACCESS_AUD must fail closed here rather than accepting any aud.
+  if (!env.ACCESS_AUD || !env.ACCESS_TEAM_DOMAIN) return null;
+
   const token = request.headers.get("Cf-Access-Jwt-Assertion");
   if (!token) return null;
 
@@ -31,6 +35,7 @@ export async function verifyAccessRequest(
     const { payload } = await jwtVerify(token, jwks, {
       issuer: env.ACCESS_TEAM_DOMAIN,
       audience: env.ACCESS_AUD,
+      algorithms: ["RS256"],
     });
     if (typeof payload.email !== "string") return null;
     return { email: payload.email };

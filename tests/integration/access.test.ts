@@ -81,4 +81,26 @@ describe("verifyAccessRequest", () => {
     });
     expect(await verifyAccessRequest(req, env)).toBeNull();
   });
+
+  it("returns null when ACCESS_AUD is empty, even for an otherwise-valid token", async () => {
+    // jose's audience check is skipped entirely when the option is falsy, so a
+    // blank ACCESS_AUD must be rejected up front rather than accepting any aud.
+    mockCertsEndpoint();
+    const token = await makeToken();
+    const req = new Request("https://worker.example/admin", {
+      headers: { "Cf-Access-Jwt-Assertion": token },
+    });
+    const blankEnv = { ...env, ACCESS_AUD: "" } as unknown as Env;
+    expect(await verifyAccessRequest(req, blankEnv)).toBeNull();
+  });
+
+  it("returns null when ACCESS_TEAM_DOMAIN is empty", async () => {
+    mockCertsEndpoint();
+    const token = await makeToken();
+    const req = new Request("https://worker.example/admin", {
+      headers: { "Cf-Access-Jwt-Assertion": token },
+    });
+    const blankEnv = { ...env, ACCESS_TEAM_DOMAIN: "" } as unknown as Env;
+    expect(await verifyAccessRequest(req, blankEnv)).toBeNull();
+  });
 });

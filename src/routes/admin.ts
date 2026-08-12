@@ -13,14 +13,24 @@ import { KATEX_CSS_PATH } from "../generated/katex-manifest";
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
 adminRoutes.use("*", async (c, next) => {
-  const identity = await verifyAccessRequest(c.req.raw, c.env);
-  if (!identity) {
-    c.header("X-Robots-Tag", "noindex");
-    c.header("Cache-Control", "no-store");
-    return c.text("Forbidden", 403);
-  }
   c.header("X-Robots-Tag", "noindex");
   c.header("Cache-Control", "no-store");
+
+  // Access's CF_Authorization cookie is sent cross-site by default, so its
+  // presence alone doesn't prove the request came from our own admin UI —
+  // forms could be auto-submitted from an attacker's page. Require the
+  // Origin header (sent by browsers on every state-changing request) to
+  // match our own site before trusting the Access identity below.
+  if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+    if (c.req.header("Origin") !== c.env.SITE_URL) {
+      return c.text("Forbidden", 403);
+    }
+  }
+
+  const identity = await verifyAccessRequest(c.req.raw, c.env);
+  if (!identity) {
+    return c.text("Forbidden", 403);
+  }
   await next();
 });
 

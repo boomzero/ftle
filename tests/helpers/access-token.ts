@@ -3,6 +3,9 @@ import { vi } from "vitest";
 
 export const TEST_TEAM_DOMAIN = "https://test-team.cloudflareaccess.com";
 export const TEST_AUD = "test-aud-tag";
+// Matches SITE_URL in vitest.config.ts — the admin CSRF guard checks the
+// Origin header against it, so authenticated test requests must send it.
+export const TEST_SITE_URL = "https://example.com";
 const kid = "test-key-1";
 
 let cachedPrivateKey: KeyLike | undefined;
@@ -49,5 +52,5 @@ export async function makeAccessToken(email = "owner@example.com"): Promise<stri
 export async function authedHeaders(): Promise<Record<string, string>> {
   await mockAccessCerts();
   const token = await makeAccessToken();
-  return { "Cf-Access-Jwt-Assertion": token };
+  return { "Cf-Access-Jwt-Assertion": token, Origin: TEST_SITE_URL };
 }
