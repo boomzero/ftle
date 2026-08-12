@@ -3,6 +3,8 @@
 [![CI](https://github.com/boomzero/ftle/actions/workflows/ci.yml/badge.svg)](https://github.com/boomzero/ftle/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+English | [简体中文](README.zh-CN.md)
+
 A dynamically-editable blog engine that runs entirely on Cloudflare's free tier — no server to patch, no database to babysit, no monthly hosting bill.
 
 Most self-hosted blog engines (WordPress and friends) trade you a web-based editor for a PHP server, a MySQL instance, plugin security patches, and a hosting bill. ftle keeps the part that's actually useful — write and publish from a browser, from anywhere — and throws away the rest: it's a single Cloudflare Worker and a D1 (SQLite) database, deployed with one command, with nothing to patch because there's no server process to compromise.
